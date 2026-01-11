@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''D:\\workspace\\tutor-bot'' -Force | Select-Object Name, Mode, LastWriteTime\")",
+      "WebSearch",
+      "Bash(npx create-next-app:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
