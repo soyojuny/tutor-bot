@@ -22,6 +22,15 @@ export interface CreateRewardInput {
   icon_emoji?: string;
 }
 
+export interface UpdateRewardInput {
+  title?: string;
+  description?: string;
+  points_cost?: number;
+  category?: RewardCategory;
+  icon_emoji?: string;
+  is_active?: boolean;
+}
+
 export interface RewardRedemption {
   id: string;
   reward_id: string;

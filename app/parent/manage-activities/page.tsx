@@ -10,7 +10,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import ActivityForm from '@/components/parent/ActivityForm';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
-import { Plus, Edit, Trash2, Calendar, User, Trophy } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, User, Trophy, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ManageActivitiesPage() {
@@ -22,7 +22,9 @@ export default function ManageActivitiesPage() {
     error,
     fetchActivities,
     deleteActivity,
+    verifyActivity,
   } = useActivityStore();
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -52,6 +54,26 @@ export default function ManageActivitiesPage() {
     if (success) {
       // 성공 메시지 (추후 토스트로 변경 가능)
       alert('활동이 삭제되었습니다.');
+    }
+  }
+
+  // 활동 검증
+  async function handleVerify(activityId: string) {
+    if (!user) return;
+    if (!confirm('이 활동을 검증하고 포인트를 지급하시겠습니까?')) return;
+
+    setActionLoading(activityId);
+    try {
+      const verifiedActivity = await verifyActivity(activityId, user.id);
+      if (verifiedActivity) {
+        alert(`${verifiedActivity.points_value}포인트가 지급되었습니다.`);
+        // 활동 목록 새로고침
+        await fetchActivities();
+      }
+    } catch (err) {
+      console.error('Error verifying activity:', err);
+    } finally {
+      setActionLoading(null);
     }
   }
 
@@ -216,25 +238,42 @@ export default function ManageActivitiesPage() {
 
                     {/* 액션 버튼 */}
                     <div className="flex gap-2 pt-2 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          // TODO: 편집 기능 (Phase 6 확장 또는 Phase 7)
-                          alert('편집 기능은 곧 추가됩니다.');
-                        }}
-                        icon={<Edit className="w-4 h-4" />}
-                      >
-                        편집
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDelete(activity.id)}
-                        icon={<Trash2 className="w-4 h-4" />}
-                      >
-                        삭제
-                      </Button>
+                      {activity.status === 'completed' && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleVerify(activity.id)}
+                          disabled={actionLoading === activity.id}
+                          loading={actionLoading === activity.id}
+                          icon={<CheckCircle2 className="w-4 h-4" />}
+                          className="flex-1"
+                        >
+                          검증하기
+                        </Button>
+                      )}
+                      {activity.status !== 'completed' && activity.status !== 'verified' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // TODO: 편집 기능 (Phase 6 확장 또는 Phase 7)
+                            alert('편집 기능은 곧 추가됩니다.');
+                          }}
+                          icon={<Edit className="w-4 h-4" />}
+                        >
+                          편집
+                        </Button>
+                      )}
+                      {activity.status !== 'verified' && (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDelete(activity.id)}
+                          icon={<Trash2 className="w-4 h-4" />}
+                        >
+                          삭제
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </Card>

@@ -14,6 +14,7 @@ interface ActivityState {
   getActivitiesByAssignedTo: (profileId: string) => Activity[];
   startActivity: (id: string) => Promise<Activity | null>;
   completeActivity: (id: string) => Promise<Activity | null>;
+  verifyActivity: (id: string, verifiedBy: string) => Promise<Activity | null>;
 }
 
 export const useActivityStore = create<ActivityState>((set, get) => ({
@@ -149,5 +150,39 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
   completeActivity: async (id: string) => {
     return get().updateActivity(id, { status: 'completed' });
+  },
+
+  verifyActivity: async (id: string, verifiedBy: string) => {
+    set({ error: null });
+    try {
+      const response = await fetch(`/api/activities/${id}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ verified_by: verifiedBy }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '활동 검증에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      const verifiedActivity = data.activity;
+
+      set((state) => ({
+        activities: state.activities.map((activity) =>
+          activity.id === id ? verifiedActivity : activity
+        ),
+      }));
+
+      return verifiedActivity;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '활동 검증 중 오류가 발생했습니다.';
+      set({ error: errorMessage });
+      console.error('Error verifying activity:', error);
+      return null;
+    }
   },
 }));

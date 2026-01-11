@@ -1,14 +1,87 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { usePointsStore } from '@/store/pointsStore';
+import { useActivityStore } from '@/store/activityStore';
+import { useRewardStore } from '@/store/rewardStore';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
-import { ClipboardList, Gift, Trophy } from 'lucide-react';
+import PointsDisplay from '@/components/shared/PointsDisplay';
+import { ClipboardList, Gift, Trophy, CheckCircle2, Clock } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function ChildDashboard() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { balance, fetchBalance } = usePointsStore();
+  const { activities, fetchActivities } = useActivityStore();
+  const { redemptions, fetchRedemptions, rewards, fetchRewards } = useRewardStore();
+
+  useEffect(() => {
+    if (user) {
+      fetchBalance(user.id);
+      fetchActivities();
+      fetchRedemptions(user.id);
+      fetchRewards();
+    }
+  }, [user, fetchBalance, fetchActivities, fetchRedemptions]);
+
+  // 내 활동 필터링
+  const myActivities = useMemo(() => {
+    return activities.filter((activity) => {
+      if (!activity.assigned_to || activity.assigned_to === user?.id) {
+        return true;
+      }
+      return false;
+    });
+  }, [activities, user?.id]);
+
+  // 통계 계산
+  const stats = useMemo(() => {
+    return {
+      total: myActivities.length,
+      completed: myActivities.filter((a) => a.status === 'completed' || a.status === 'verified').length,
+      inProgress: myActivities.filter((a) => a.status === 'in_progress').length,
+      totalPoints: myActivities
+        .filter((a) => a.status === 'verified')
+        .reduce((sum, a) => sum + a.points_value, 0),
+    };
+  }, [myActivities]);
+
+  // 최근 활동 목록
+  const recentActivities = useMemo(() => {
+    return [...myActivities]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 5);
+  }, [myActivities]);
+
+  // 최근 보상 교환 내역
+  const myRedemptions = useMemo(() => {
+    return redemptions.filter((r) => r.profile_id === user?.id);
+  }, [redemptions, user?.id]);
+
+  const recentRedemptions = useMemo(() => {
+    return [...myRedemptions]
+      .sort((a, b) => new Date(b.redeemed_at).getTime() - new Date(a.redeemed_at).getTime())
+      .slice(0, 3);
+  }, [myRedemptions]);
+
+  // 날짜 포맷팅
+  function formatDate(dateString: string | undefined) {
+    if (!dateString) return null;
+    try {
+      return format(new Date(dateString), 'MM-dd HH:mm');
+    } catch {
+      return null;
+    }
+  }
+
+  // 보상 정보 가져오기
+  function getRewardInfo(rewardId: string) {
+    return rewards.find((r) => r.id === rewardId);
+  }
 
   return (
     <div className="container mx-auto p-8">
@@ -27,6 +100,13 @@ export default function ChildDashboard() {
             로그아웃
           </button>
         </div>
+
+        {/* 포인트 표시 */}
+        {balance && (
+          <div className="mb-6">
+            <PointsDisplay balance={balance.current_balance} size="lg" />
+          </div>
+        )}
 
         {/* 빠른 링크 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

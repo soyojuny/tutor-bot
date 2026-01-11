@@ -1,0 +1,122 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { UpdateRewardInput } from '@/types';
+
+/**
+ * PATCH /api/rewards/[id]
+ * 보상 업데이트
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const input = body as UpdateRewardInput;
+
+    const supabase = createAdminClient();
+
+    // 기존 보상 확인
+    const { data: existingReward, error: fetchError } = await supabase
+      .from('rewards')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingReward) {
+      return NextResponse.json(
+        { error: '보상을 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
+    // 업데이트 가능한 필드만 추출
+    const updateData: Partial<UpdateRewardInput> = {};
+    if (input.title !== undefined) updateData.title = input.title;
+    if (input.description !== undefined) updateData.description = input.description;
+    if (input.points_cost !== undefined) updateData.points_cost = input.points_cost;
+    if (input.category !== undefined) updateData.category = input.category;
+    if (input.icon_emoji !== undefined) updateData.icon_emoji = input.icon_emoji;
+    if (input.is_active !== undefined) updateData.is_active = input.is_active;
+
+    // 보상 업데이트
+    const { data: reward, error } = await supabase
+      .from('rewards')
+      .update({
+        ...updateData,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating reward:', error);
+      return NextResponse.json(
+        { error: '보상 업데이트에 실패했습니다.' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ reward });
+  } catch (error) {
+    console.error('Error in PATCH /api/rewards/[id]:', error);
+    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+    return NextResponse.json(
+      { error: errorMessage },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/rewards/[id]
+ * 보상 삭제
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = createAdminClient();
+
+    // 기존 보상 확인
+    const { data: existingReward, error: fetchError } = await supabase
+      .from('rewards')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingReward) {
+      return NextResponse.json(
+        { error: '보상을 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
+    // 보상 삭제
+    const { error } = await supabase
+      .from('rewards')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting reward:', error);
+      return NextResponse.json(
+        { error: '보상 삭제에 실패했습니다.' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in DELETE /api/rewards/[id]:', error);
+    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+    return NextResponse.json(
+      { error: errorMessage },
+      { status: 500 }
+    );
+  }
+}
