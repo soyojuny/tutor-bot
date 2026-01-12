@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityStore } from '@/store/activityStore';
-import { CreateActivityInput, Profile, ActivityCategory } from '@/types';
+import { Activity, CreateActivityInput, Profile, ActivityCategory } from '@/types';
 import { ACTIVITY_CATEGORIES, DEFAULT_POINTS_BY_CATEGORY } from '@/lib/constants/activities';
 import Modal from '@/components/shared/Modal';
 import Input from '@/components/shared/Input';
@@ -14,24 +14,43 @@ interface ActivityFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  activityToEdit?: Activity;
 }
 
-export default function ActivityForm({ isOpen, onClose, onSuccess }: ActivityFormProps) {
+export default function ActivityForm({ isOpen, onClose, onSuccess, activityToEdit }: ActivityFormProps) {
   const { user } = useAuth();
-  const { createActivity, error: storeError } = useActivityStore();
+  const { createActivity, updateActivity, error: storeError } = useActivityStore();
   const [loading, setLoading] = useState(false);
   const [childProfiles, setChildProfiles] = useState<Profile[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
 
+  // 모드 감지
+  const isEditMode = !!activityToEdit;
+
+  // 초기값 설정 함수
+  function getInitialFormData(): CreateActivityInput {
+    if (activityToEdit) {
+      return {
+        title: activityToEdit.title,
+        description: activityToEdit.description || '',
+        category: activityToEdit.category,
+        points_value: activityToEdit.points_value,
+        assigned_to: activityToEdit.assigned_to,
+        due_date: activityToEdit.due_date,
+      };
+    }
+    return {
+      title: '',
+      description: '',
+      category: 'homework',
+      points_value: DEFAULT_POINTS_BY_CATEGORY.homework,
+      assigned_to: undefined,
+      due_date: undefined,
+    };
+  }
+
   // 폼 상태
-  const [formData, setFormData] = useState<CreateActivityInput>({
-    title: '',
-    description: '',
-    category: 'homework',
-    points_value: DEFAULT_POINTS_BY_CATEGORY.homework,
-    assigned_to: undefined,
-    due_date: undefined,
-  });
+  const [formData, setFormData] = useState<CreateActivityInput>(getInitialFormData());
 
   // 아이 프로필 목록 불러오기
   useEffect(() => {
@@ -39,6 +58,14 @@ export default function ActivityForm({ isOpen, onClose, onSuccess }: ActivityFor
       fetchChildProfiles();
     }
   }, [isOpen]);
+
+  // activityToEdit 변경 시 폼 리셋
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(getInitialFormData());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityToEdit, isOpen]);
 
   async function fetchChildProfiles() {
     setLoadingProfiles(true);
@@ -75,22 +102,32 @@ export default function ActivityForm({ isOpen, onClose, onSuccess }: ActivityFor
 
     setLoading(true);
     try {
-      const activity = await createActivity(formData, user.id);
-      if (activity) {
-        // 폼 초기화
-        setFormData({
-          title: '',
-          description: '',
-          category: 'homework',
-          points_value: DEFAULT_POINTS_BY_CATEGORY.homework,
-          assigned_to: undefined,
-          due_date: undefined,
-        });
-        onSuccess?.();
-        onClose();
+      if (isEditMode && activityToEdit) {
+        // 수정 모드
+        const updated = await updateActivity(activityToEdit.id, formData);
+        if (updated) {
+          onSuccess?.();
+          onClose();
+        }
+      } else {
+        // 생성 모드
+        const activity = await createActivity(formData, user.id);
+        if (activity) {
+          // 폼 초기화
+          setFormData({
+            title: '',
+            description: '',
+            category: 'homework',
+            points_value: DEFAULT_POINTS_BY_CATEGORY.homework,
+            assigned_to: undefined,
+            due_date: undefined,
+          });
+          onSuccess?.();
+          onClose();
+        }
       }
     } catch (err) {
-      console.error('Error creating activity:', err);
+      console.error('활동 저장 실패:', err);
     } finally {
       setLoading(false);
     }
@@ -113,8 +150,8 @@ export default function ActivityForm({ isOpen, onClose, onSuccess }: ActivityFor
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="새 활동 만들기"
-      description="아이들에게 할 활동을 추가하세요"
+      title={isEditMode ? '활동 수정' : '새 활동 만들기'}
+      description={isEditMode ? '활동 정보를 수정하세요' : '아이들에게 할 활동을 추가하세요'}
       size="lg"
       footer={
         <div className="flex justify-end gap-2">
@@ -127,7 +164,7 @@ export default function ActivityForm({ isOpen, onClose, onSuccess }: ActivityFor
             loading={loading}
             disabled={loading || !formData.title.trim()}
           >
-            만들기
+            {isEditMode ? '수정하기' : '만들기'}
           </Button>
         </div>
       }
@@ -206,8 +243,8 @@ export default function ActivityForm({ isOpen, onClose, onSuccess }: ActivityFor
                   assigned_to: e.target.value || undefined,
                 })
               }
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg transition-all duration-200 focus:outline-none focus:border-parent-primary"
-              disabled={loadingProfiles}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg transition-all duration-200 focus:outline-none focus:border-parent-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
+              disabled={loadingProfiles || (isEditMode && activityToEdit?.status === 'in_progress')}
             >
               <option value="">전체</option>
               {childProfiles.map((profile) => (
@@ -218,6 +255,9 @@ export default function ActivityForm({ isOpen, onClose, onSuccess }: ActivityFor
             </select>
             {loadingProfiles && (
               <p className="text-xs text-gray-500 mt-1">로딩 중...</p>
+            )}
+            {isEditMode && activityToEdit?.status === 'in_progress' && (
+              <p className="text-xs text-gray-500 mt-1">진행 중인 활동은 배정을 변경할 수 없습니다.</p>
             )}
           </div>
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityStore } from '@/store/activityStore';
 import { Activity, ActivityCategory } from '@/types';
@@ -26,6 +27,7 @@ export default function ManageActivitiesPage() {
   } = useActivityStore();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [activityToEdit, setActivityToEdit] = useState<Activity | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -52,8 +54,9 @@ export default function ManageActivitiesPage() {
 
     const success = await deleteActivity(id);
     if (success) {
-      // 성공 메시지 (추후 토스트로 변경 가능)
-      alert('활동이 삭제되었습니다.');
+      toast.success('활동이 삭제되었습니다.');
+    } else {
+      toast.error('활동 삭제에 실패했습니다.');
     }
   }
 
@@ -66,15 +69,24 @@ export default function ManageActivitiesPage() {
     try {
       const verifiedActivity = await verifyActivity(activityId, user.id);
       if (verifiedActivity) {
-        alert(`${verifiedActivity.points_value}포인트가 지급되었습니다.`);
+        toast.success(`${verifiedActivity.points_value}포인트가 지급되었습니다! 🎉`);
         // 활동 목록 새로고침
         await fetchActivities();
+      } else {
+        toast.error('활동 검증에 실패했습니다.');
       }
     } catch (err) {
       console.error('Error verifying activity:', err);
+      toast.error('활동 검증 중 오류가 발생했습니다.');
     } finally {
       setActionLoading(null);
     }
+  }
+
+  // 활동 편집
+  function handleEdit(activity: Activity) {
+    setActivityToEdit(activity);
+    setIsFormOpen(true);
   }
 
   // 날짜 포맷팅
@@ -104,7 +116,10 @@ export default function ManageActivitiesPage() {
             </p>
           </div>
           <Button
-            onClick={() => setIsFormOpen(true)}
+            onClick={() => {
+              setActivityToEdit(null);
+              setIsFormOpen(true);
+            }}
             icon={<Plus className="w-5 h-5" />}
           >
             새 활동 만들기
@@ -251,19 +266,14 @@ export default function ManageActivitiesPage() {
                           검증하기
                         </Button>
                       )}
-                      {activity.status !== 'completed' && activity.status !== 'verified' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            // TODO: 편집 기능 (Phase 6 확장 또는 Phase 7)
-                            alert('편집 기능은 곧 추가됩니다.');
-                          }}
-                          icon={<Edit className="w-4 h-4" />}
-                        >
-                          편집
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(activity)}
+                        icon={<Edit className="w-4 h-4" />}
+                      >
+                        편집
+                      </Button>
                       {activity.status !== 'verified' && (
                         <Button
                           variant="danger"
@@ -282,13 +292,18 @@ export default function ManageActivitiesPage() {
           </div>
         )}
 
-        {/* 활동 생성 폼 */}
+        {/* 활동 생성/수정 폼 */}
         <ActivityForm
           isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
+          onClose={() => {
+            setIsFormOpen(false);
+            setActivityToEdit(null);
+          }}
           onSuccess={() => {
             fetchActivities();
+            setActivityToEdit(null);
           }}
+          activityToEdit={activityToEdit || undefined}
         />
       </div>
     </ProtectedRoute>

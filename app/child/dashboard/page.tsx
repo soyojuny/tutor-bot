@@ -9,6 +9,7 @@ import { useRewardStore } from '@/store/rewardStore';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
 import PointsDisplay from '@/components/shared/PointsDisplay';
+import StreakDisplay from '@/components/child/StreakDisplay';
 import { ClipboardList, Gift, Trophy, CheckCircle2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -101,12 +102,15 @@ export default function ChildDashboard() {
           </button>
         </div>
 
-        {/* 포인트 표시 */}
-        {balance && (
-          <div className="mb-6">
+        {/* 포인트 & 연속 달성일 표시 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {balance && (
             <PointsDisplay balance={balance.current_balance} size="lg" />
-          </div>
-        )}
+          )}
+          {user && (
+            <StreakDisplay profileId={user.id} />
+          )}
+        </div>
 
         {/* 빠른 링크 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { Database } from '@/types';
+
+type ActivityRow = Database['public']['Tables']['activities']['Row'];
+type ActivityUpdate = Database['public']['Tables']['activities']['Update'];
+type PointsLedgerInsert = Database['public']['Tables']['points_ledger']['Insert'];
+type DailyStreakRow = Database['public']['Tables']['daily_streaks']['Row'];
+type DailyStreakInsert = Database['public']['Tables']['daily_streaks']['Insert'];
+type DailyStreakUpdate = Database['public']['Tables']['daily_streaks']['Update'];
 
 /**
  * POST /api/activities/[id]/verify
@@ -123,6 +131,55 @@ export async function POST(
         { error: '활동 상태 업데이트에 실패했습니다. (포인트는 지급되었습니다)' },
         { status: 500 }
       );
+    }
+
+    // 3. 연속 달성일 업데이트
+    try {
+      const today = new Date().toISOString().split('T')[0];
+
+      const { data: existingStreak } = await supabase
+        .from('daily_streaks')
+        .select('*')
+        .eq('profile_id', activity.assigned_to)
+        .single();
+
+      if (existingStreak) {
+        const lastDate = new Date(existingStreak.last_activity_date);
+        const todayDate = new Date(today);
+        const diffDays = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        let newStreakCount = existingStreak.streak_count;
+        let newLongestStreak = existingStreak.longest_streak;
+
+        if (diffDays === 1) {
+          newStreakCount = existingStreak.streak_count + 1;
+          newLongestStreak = Math.max(newStreakCount, existingStreak.longest_streak);
+        } else if (diffDays > 1) {
+          newStreakCount = 1;
+        }
+
+        await supabase
+          .from('daily_streaks')
+          .update({
+            streak_count: newStreakCount,
+            longest_streak: newLongestStreak,
+            last_activity_date: today,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('profile_id', activity.assigned_to);
+      } else {
+        await supabase
+          .from('daily_streaks')
+          .insert({
+            profile_id: activity.assigned_to,
+            streak_count: 1,
+            longest_streak: 1,
+            last_activity_date: today,
+          });
+      }
+    } catch (streakError) {
+      console.error('Error updating streak (non-critical):', streakError);
+      // 연속 달성일 업데이트 실패는 치명적이지 않으므로 무시
     }
 
     return NextResponse.json({

@@ -10,6 +10,8 @@ import { Profile, Activity } from '@/types';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
 import PointsDisplay from '@/components/shared/PointsDisplay';
+import ActivityStatsChart from '@/components/dashboard/ActivityStatsChart';
+import ActivityTrendChart from '@/components/dashboard/ActivityTrendChart';
 import { Plus, ClipboardList, Gift, BarChart3, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -201,6 +203,19 @@ export default function ParentDashboard() {
             </Button>
           </div>
         </Card>
+
+        {/* 차트 섹션 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          <Card padding="md">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">카테고리별 활동 통계</h3>
+            <ActivityStatsChart activities={activities} />
+          </Card>
+
+          <Card padding="md">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">최근 7일 활동 추이</h3>
+            <ActivityTrendChart activities={activities} days={7} />
+          </Card>
+        </div>
 
         {/* 알림 영역 */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">

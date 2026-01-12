@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useRewardStore } from '@/store/rewardStore';
 import { Reward, RewardCategory } from '@/types';
@@ -50,7 +51,9 @@ export default function ManageRewardsPage() {
 
     const success = await deleteReward(id);
     if (success) {
-      alert('보상이 삭제되었습니다.');
+      toast.success('보상이 삭제되었습니다.');
+    } else {
+      toast.error('보상 삭제에 실패했습니다.');
     }
   }
 

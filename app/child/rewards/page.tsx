@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useRewardStore } from '@/store/rewardStore';
 import { usePointsStore } from '@/store/pointsStore';
@@ -41,7 +42,7 @@ export default function ChildRewardsPage() {
     if (!reward) return;
 
     if (balance && balance.current_balance < reward.points_cost) {
-      alert('포인트가 부족합니다!');
+      toast.error('포인트가 부족합니다! 😢');
       return;
     }
 
@@ -53,14 +54,17 @@ export default function ChildRewardsPage() {
     try {
       const redemption = await redeemReward(rewardId, user.id);
       if (redemption) {
-        alert(`${reward.title} 교환 요청이 완료되었어요! 부모님이 확인할 거예요.`);
+        toast.success(`${reward.title} 교환 요청이 완료되었어요! 🎁 부모님이 확인할 거예요.`);
         // 포인트 잔액 새로고침
         await fetchBalance(user.id);
         // 보상 목록 새로고침 (필요 시)
         await fetchRewards();
+      } else {
+        toast.error('교환 요청에 실패했습니다.');
       }
     } catch (err) {
       console.error('Error redeeming reward:', err);
+      toast.error('교환 요청 중 오류가 발생했습니다.');
     } finally {
       setActionLoading(null);
     }

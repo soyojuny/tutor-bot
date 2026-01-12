@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { UpdateActivityInput } from '@/types';
+import { UpdateActivityInput, Database } from '@/types';
+
+type ActivityRow = Database['public']['Tables']['activities']['Row'];
+type ActivityUpdate = Database['public']['Tables']['activities']['Update'];
 
 /**
  * PATCH /api/activities/[id]
@@ -31,8 +34,11 @@ export async function PATCH(
       );
     }
 
-    // 업데이트 가능한 필드만 추출
-    const updateData: Partial<UpdateActivityInput> = {};
+    // 업데이트 데이터 준비
+    const updateData: ActivityUpdate = {
+      updated_at: new Date().toISOString(),
+    };
+
     if (input.title !== undefined) updateData.title = input.title;
     if (input.description !== undefined) updateData.description = input.description;
     if (input.category !== undefined) updateData.category = input.category;
@@ -45,17 +51,13 @@ export async function PATCH(
       updateData.completed_at = new Date().toISOString();
     }
     if (input.status === 'verified' && existingActivity.status !== 'verified') {
-      // verified_by는 요청에서 받아야 하지만, 일단 null로 설정 (나중에 추가)
       updateData.verified_at = new Date().toISOString();
     }
 
     // 활동 업데이트
     const { data: activity, error } = await supabase
       .from('activities')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

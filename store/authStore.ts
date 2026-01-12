@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Profile } from '@/types';
 import { createClient } from '@/lib/supabase/client';
+import { verifyPin } from '@/lib/utils/auth';
 
 interface AuthState {
   currentUser: Profile | null;
@@ -33,8 +34,21 @@ export const useAuthStore = create<AuthState>()(
             return false;
           }
 
-          // Verify PIN (simple comparison for now - should use bcrypt in production)
-          if (profile.pin_code !== pin) {
+          // Verify PIN using bcrypt
+          // Check if PIN is hashed (starts with $2a$ or $2b$) or plain text
+          const isHashed = profile.pin_code.startsWith('$2a$') || profile.pin_code.startsWith('$2b$');
+
+          let isPinValid = false;
+          if (isHashed) {
+            // Use bcrypt to verify hashed PIN
+            isPinValid = await verifyPin(pin, profile.pin_code);
+          } else {
+            // Fallback to plain text comparison for backward compatibility
+            // TODO: Migrate all PINs to hashed format
+            isPinValid = profile.pin_code === pin;
+          }
+
+          if (!isPinValid) {
             console.error('Invalid PIN');
             return false;
           }
