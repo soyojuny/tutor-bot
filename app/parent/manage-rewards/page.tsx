@@ -25,6 +25,7 @@ export default function ManageRewardsPage() {
     updateReward,
   } = useRewardStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [rewardToEdit, setRewardToEdit] = useState<Reward | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showActiveOnly, setShowActiveOnly] = useState(true);
 
@@ -61,8 +62,20 @@ export default function ManageRewardsPage() {
   async function handleToggleActive(reward: Reward) {
     const success = await updateReward(reward.id, { is_active: !reward.is_active });
     if (success) {
-      // 성공 메시지는 필요 시 추가
+      toast.success(reward.is_active ? '보상이 비활성화되었습니다.' : '보상이 활성화되었습니다.');
     }
+  }
+
+  // 보상 수정
+  function handleEdit(reward: Reward) {
+    setRewardToEdit(reward);
+    setIsFormOpen(true);
+  }
+
+  // 폼 닫기
+  function handleFormClose() {
+    setIsFormOpen(false);
+    setRewardToEdit(undefined);
   }
 
   // 카테고리 정보 가져오기
@@ -91,7 +104,10 @@ export default function ManageRewardsPage() {
               교환 내역
             </Button>
             <Button
-              onClick={() => setIsFormOpen(true)}
+              onClick={() => {
+                setRewardToEdit(undefined);
+                setIsFormOpen(true);
+              }}
               icon={<Plus className="w-5 h-5" />}
             >
               새 보상 만들기
@@ -215,6 +231,14 @@ export default function ManageRewardsPage() {
                     {/* 액션 버튼 */}
                     <div className="flex gap-2 pt-2 border-t">
                       <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleEdit(reward)}
+                        icon={<Edit className="w-4 h-4" />}
+                      >
+                        수정
+                      </Button>
+                      <Button
                         variant={reward.is_active ? 'ghost' : 'secondary'}
                         size="sm"
                         onClick={() => handleToggleActive(reward)}
@@ -238,13 +262,15 @@ export default function ManageRewardsPage() {
           </div>
         )}
 
-        {/* 보상 생성 폼 */}
+        {/* 보상 생성/수정 폼 */}
         <RewardForm
           isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
+          onClose={handleFormClose}
           onSuccess={() => {
             fetchRewards();
+            toast.success(rewardToEdit ? '보상이 수정되었습니다.' : '보상이 생성되었습니다.');
           }}
+          rewardToEdit={rewardToEdit}
         />
       </div>
     </ProtectedRoute>

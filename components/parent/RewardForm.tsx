@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRewardStore } from '@/store/rewardStore';
-import { CreateRewardInput, RewardCategory } from '@/types';
+import { Reward, CreateRewardInput, RewardCategory } from '@/types';
 import { REWARD_CATEGORIES, SUGGESTED_REWARD_EMOJIS } from '@/lib/constants/rewards';
 import Modal from '@/components/shared/Modal';
 import Input from '@/components/shared/Input';
@@ -13,21 +13,47 @@ interface RewardFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  rewardToEdit?: Reward;
 }
 
-export default function RewardForm({ isOpen, onClose, onSuccess }: RewardFormProps) {
+export default function RewardForm({ isOpen, onClose, onSuccess, rewardToEdit }: RewardFormProps) {
   const { user } = useAuth();
-  const { createReward, error: storeError } = useRewardStore();
+  const { createReward, updateReward, error: storeError } = useRewardStore();
   const [loading, setLoading] = useState(false);
 
+  // 모드 감지
+  const isEditMode = !!rewardToEdit;
+
+  // 초기값 설정 함수
+  function getInitialFormData(): CreateRewardInput {
+    if (rewardToEdit) {
+      return {
+        title: rewardToEdit.title,
+        description: rewardToEdit.description || '',
+        points_cost: rewardToEdit.points_cost,
+        category: rewardToEdit.category || 'other',
+        icon_emoji: rewardToEdit.icon_emoji || '',
+      };
+    }
+    return {
+      title: '',
+      description: '',
+      points_cost: 50,
+      category: 'screen_time',
+      icon_emoji: '',
+    };
+  }
+
   // 폼 상태
-  const [formData, setFormData] = useState<CreateRewardInput>({
-    title: '',
-    description: '',
-    points_cost: 50,
-    category: 'screen_time',
-    icon_emoji: '',
-  });
+  const [formData, setFormData] = useState<CreateRewardInput>(getInitialFormData());
+
+  // rewardToEdit 변경 시 폼 리셋
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(getInitialFormData());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rewardToEdit, isOpen]);
 
   // 폼 제출
   async function handleSubmit(e: React.FormEvent) {
@@ -36,21 +62,31 @@ export default function RewardForm({ isOpen, onClose, onSuccess }: RewardFormPro
 
     setLoading(true);
     try {
-      const reward = await createReward(formData, user.id);
-      if (reward) {
-        // 폼 초기화
-        setFormData({
-          title: '',
-          description: '',
-          points_cost: 50,
-          category: 'screen_time',
-          icon_emoji: '',
-        });
-        onSuccess?.();
-        onClose();
+      if (isEditMode && rewardToEdit) {
+        // 수정 모드
+        const updated = await updateReward(rewardToEdit.id, formData);
+        if (updated) {
+          onSuccess?.();
+          onClose();
+        }
+      } else {
+        // 생성 모드
+        const reward = await createReward(formData, user.id);
+        if (reward) {
+          // 폼 초기화
+          setFormData({
+            title: '',
+            description: '',
+            points_cost: 50,
+            category: 'screen_time',
+            icon_emoji: '',
+          });
+          onSuccess?.();
+          onClose();
+        }
       }
     } catch (err) {
-      console.error('Error creating reward:', err);
+      console.error('보상 저장 실패:', err);
     } finally {
       setLoading(false);
     }
@@ -72,8 +108,8 @@ export default function RewardForm({ isOpen, onClose, onSuccess }: RewardFormPro
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="새 보상 만들기"
-      description="아이들이 교환할 수 있는 보상을 추가하세요"
+      title={isEditMode ? '보상 수정' : '새 보상 만들기'}
+      description={isEditMode ? '보상 정보를 수정하세요' : '아이들이 교환할 수 있는 보상을 추가하세요'}
       size="lg"
       footer={
         <div className="flex justify-end gap-2">
@@ -86,7 +122,7 @@ export default function RewardForm({ isOpen, onClose, onSuccess }: RewardFormPro
             loading={loading}
             disabled={loading || !formData.title.trim() || formData.points_cost <= 0}
           >
-            만들기
+            {isEditMode ? '수정하기' : '만들기'}
           </Button>
         </div>
       }
