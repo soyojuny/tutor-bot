@@ -166,15 +166,6 @@ export default function ChildDashboard() {
           </div>
         </Card>
 
-        {/* 알림 영역 */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
-          <p className="text-yellow-800 text-lg">
-            💡 <strong>Phase 7 완료!</strong> 활동을 시작하고 완료할 수 있어요!
-          </p>
-          <p className="text-sm text-yellow-600 mt-2">
-            활동 페이지에서 할 일을 확인하고 완료해보세요.
-          </p>
-        </div>
       </div>
     </div>
   );

@@ -217,15 +217,6 @@ export default function ParentDashboard() {
           </Card>
         </div>
 
-        {/* 알림 영역 */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
-          <p className="text-blue-800">
-            💡 <strong>Phase 6 완료!</strong> 활동 관리 기능을 사용할 수 있습니다.
-          </p>
-          <p className="text-sm text-blue-600 mt-2">
-            활동 목록 페이지에서 새 활동을 만들고 관리해보세요.
-          </p>
-        </div>
       </div>
     </div>
   );
