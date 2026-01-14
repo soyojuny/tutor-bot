@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { CreateRewardInput } from '@/types';
+import { RewardRow, ProfileRow } from '@/lib/supabase/types';
+
+// Supabase 타입 체인 호환성을 위한 타입
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQueryResult<T> = { data: T | null; error: any };
 
 /**
  * GET /api/rewards
@@ -8,7 +13,8 @@ import { CreateRewardInput } from '@/types';
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
     const searchParams = request.nextUrl.searchParams;
     const isActive = searchParams.get('is_active');
 
@@ -21,7 +27,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('is_active', isActive === 'true');
     }
 
-    const { data: rewards, error } = await query;
+    const { data: rewards, error }: SupabaseQueryResult<RewardRow[]> = await query;
 
     if (error) {
       console.error('Error fetching rewards:', error);
@@ -67,8 +73,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 권한 검증: 생성자는 부모여야 함
-    const supabase = createAdminClient();
-    const { data: creator, error: creatorError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
+    const { data: creator, error: creatorError }: SupabaseQueryResult<ProfileRow> = await supabase
       .from('profiles')
       .select('role')
       .eq('id', created_by)
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 보상 생성
-    const { data: reward, error } = await supabase
+    const { data: reward, error }: SupabaseQueryResult<RewardRow> = await supabase
       .from('rewards')
       .insert({
         ...input,

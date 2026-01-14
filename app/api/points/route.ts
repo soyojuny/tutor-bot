@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { PointsLedgerRow } from '@/lib/supabase/types';
+
+// Supabase 타입 체인 호환성을 위한 타입
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQueryResult<T> = { data: T | null; error: any };
 
 /**
  * GET /api/points?profile_id=xxx
@@ -7,7 +12,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
     const searchParams = request.nextUrl.searchParams;
     const profileId = searchParams.get('profile_id');
 
@@ -19,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 현재 잔액 계산: 가장 최근 balance_after
-    const { data: latestTransaction, error: latestError } = await supabase
+    const { data: latestTransaction }: SupabaseQueryResult<PointsLedgerRow> = await supabase
       .from('points_ledger')
       .select('balance_after')
       .eq('profile_id', profileId)
@@ -27,10 +33,10 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .single();
 
-    const currentBalance = latestTransaction?.balance_after || 0;
+    const currentBalance = latestTransaction?.balance_after ?? 0;
 
     // 거래 내역 조회 (최근 50개)
-    const { data: transactions, error: transactionsError } = await supabase
+    const { data: transactions, error: transactionsError }: SupabaseQueryResult<PointsLedgerRow[]> = await supabase
       .from('points_ledger')
       .select('*')
       .eq('profile_id', profileId)

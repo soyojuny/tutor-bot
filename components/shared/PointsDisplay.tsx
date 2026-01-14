@@ -2,6 +2,7 @@
 
 import { Trophy } from 'lucide-react';
 import Card from './Card';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PointsDisplayProps {
   balance: number;
@@ -10,6 +11,9 @@ interface PointsDisplayProps {
 }
 
 export default function PointsDisplay({ balance, size = 'md', className }: PointsDisplayProps) {
+  const { user } = useAuth();
+  const role = user?.role || 'child';
+
   const sizeClasses = {
     sm: 'text-lg',
     md: 'text-2xl',
@@ -22,11 +26,15 @@ export default function PointsDisplay({ balance, size = 'md', className }: Point
     lg: 'w-8 h-8',
   };
 
+  // 역할별 스타일링
+  const bgColor = role === 'child' ? 'bg-yellow-100' : 'bg-blue-100';
+  const iconColor = role === 'child' ? 'text-yellow-600' : 'text-blue-600';
+
   return (
     <Card padding="md" className={className}>
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-yellow-100 rounded-lg">
-          <Trophy className={`${iconSizes[size]} text-yellow-600`} />
+        <div className={`p-2 ${bgColor} rounded-lg`}>
+          <Trophy className={`${iconSizes[size]} ${iconColor}`} />
         </div>
         <div>
           <div className="text-sm text-gray-600">포인트</div>

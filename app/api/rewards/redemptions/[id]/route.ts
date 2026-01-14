@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { RedemptionStatus } from '@/types';
+import { RedemptionRow } from '@/lib/supabase/types';
+
+// Supabase 타입 체인 호환성을 위한 타입
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQueryResult<T> = { data: T | null; error: any };
 
 /**
  * PATCH /api/rewards/redemptions/[id]
@@ -22,10 +27,11 @@ export async function PATCH(
       );
     }
 
-    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
 
     // 기존 교환 내역 확인
-    const { data: existingRedemption, error: fetchError } = await supabase
+    const { data: existingRedemption, error: fetchError }: SupabaseQueryResult<RedemptionRow> = await supabase
       .from('reward_redemptions')
       .select('*')
       .eq('id', id)
@@ -51,7 +57,7 @@ export async function PATCH(
     }
 
     // 교환 상태 업데이트
-    const { data: redemption, error } = await supabase
+    const { data: redemption, error }: SupabaseQueryResult<RedemptionRow> = await supabase
       .from('reward_redemptions')
       .update(updateData)
       .eq('id', id)

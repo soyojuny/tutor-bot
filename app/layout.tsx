@@ -1,15 +1,26 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Toaster } from 'react-hot-toast';
 import './globals.css';
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#3b82f6',
+};
+
 export const metadata: Metadata = {
   title: 'Family Learning Tutor',
-  description: 'Track learning activities and earn rewards',
+  description: '아이들의 학습 활동을 추적하고 보상을 얻어보세요',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Tutor Bot',
+  },
+  icons: {
+    apple: '/icons/apple-touch-icon.png',
   },
 };
 

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { CreateActivityInput } from '@/types';
+import { ActivityRow, ProfileRow } from '@/lib/supabase/types';
+
+// Supabase 타입 체인 호환성을 위한 타입
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQueryResult<T> = { data: T | null; error: any };
 
 /**
  * GET /api/activities
@@ -8,9 +13,10 @@ import { CreateActivityInput } from '@/types';
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
     const searchParams = request.nextUrl.searchParams;
-    
+
     // 선택적 필터링
     const assignedTo = searchParams.get('assigned_to');
     const status = searchParams.get('status');
@@ -31,7 +37,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('created_by', createdBy);
     }
 
-    const { data: activities, error } = await query;
+    const { data: activities, error }: SupabaseQueryResult<ActivityRow[]> = await query;
 
     if (error) {
       console.error('Error fetching activities:', error);
@@ -77,21 +83,22 @@ export async function POST(request: NextRequest) {
     }
 
     // 권한 검증: 생성자는 부모여야 함
-    const supabase = createAdminClient();
-    const { data: creator, error: creatorError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
+    const { data: creatorData, error: creatorError }: SupabaseQueryResult<ProfileRow> = await supabase
       .from('profiles')
       .select('role')
       .eq('id', created_by)
       .single();
 
-    if (creatorError || !creator) {
+    if (creatorError || !creatorData) {
       return NextResponse.json(
         { error: '유효하지 않은 사용자입니다.' },
         { status: 400 }
       );
     }
 
-    if (creator.role !== 'parent') {
+    if (creatorData.role !== 'parent') {
       return NextResponse.json(
         { error: '활동은 부모만 생성할 수 있습니다.' },
         { status: 403 }
@@ -100,13 +107,13 @@ export async function POST(request: NextRequest) {
 
     // assigned_to가 있으면 해당 프로필이 존재하는지 확인
     if (input.assigned_to) {
-      const { data: assignee, error: assigneeError } = await supabase
+      const { data: assigneeData, error: assigneeError }: SupabaseQueryResult<ProfileRow> = await supabase
         .from('profiles')
         .select('role')
         .eq('id', input.assigned_to)
         .single();
 
-      if (assigneeError || !assignee || assignee.role !== 'child') {
+      if (assigneeError || !assigneeData || assigneeData.role !== 'child') {
         return NextResponse.json(
           { error: '유효하지 않은 할당 대상입니다.' },
           { status: 400 }
@@ -115,7 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 활동 생성
-    const { data: activity, error } = await supabase
+    const { data: activity, error }: SupabaseQueryResult<ActivityRow> = await supabase
       .from('activities')
       .insert({
         ...input,

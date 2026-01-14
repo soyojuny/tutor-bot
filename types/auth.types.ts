@@ -4,8 +4,8 @@ export interface Profile {
   id: string;
   name: string;
   role: UserRole;
-  age?: number;
-  avatar_url?: string;
+  age: number | null;
+  avatar_url: string | null;
   pin_code: string;
   created_at: string;
   updated_at: string;

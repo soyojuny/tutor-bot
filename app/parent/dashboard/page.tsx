@@ -49,14 +49,14 @@ export default function ParentDashboard() {
       const balances: Record<string, number> = {};
       for (const profile of profiles || []) {
         try {
-          const response = await fetch(`/api/points?profile_id=${profile.id}`);
+          const response = await fetch(`/api/points?profile_id=${(profile as any).id}`);
           if (response.ok) {
             const data = await response.json();
-            balances[profile.id] = data.current_balance || 0;
+            balances[(profile as any).id] = data.current_balance || 0;
           }
         } catch (err) {
-          console.error(`Error fetching points for ${profile.id}:`, err);
-          balances[profile.id] = 0;
+          console.error(`Error fetching points for ${(profile as any).id}:`, err);
+          balances[(profile as any).id] = 0;
         }
       }
       setChildBalances(balances);
@@ -180,8 +180,8 @@ export default function ParentDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {childProfiles.map((child) => (
               <PointsDisplay
-                key={child.id}
-                balance={childBalances[child.id] || 0}
+                key={(child as any).id}
+                balance={childBalances[(child as any).id] || 0}
                 size="md"
               />
             ))}

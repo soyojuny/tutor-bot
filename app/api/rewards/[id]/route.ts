@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { UpdateRewardInput } from '@/types';
+import { RewardRow } from '@/lib/supabase/types';
+
+// Supabase 타입 체인 호환성을 위한 타입
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQueryResult<T> = { data: T | null; error: any };
 
 /**
  * PATCH /api/rewards/[id]
@@ -15,10 +20,11 @@ export async function PATCH(
     const body = await request.json();
     const input = body as UpdateRewardInput;
 
-    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
 
     // 기존 보상 확인
-    const { data: existingReward, error: fetchError } = await supabase
+    const { data: existingReward, error: fetchError }: SupabaseQueryResult<RewardRow> = await supabase
       .from('rewards')
       .select('*')
       .eq('id', id)
@@ -41,7 +47,7 @@ export async function PATCH(
     if (input.is_active !== undefined) updateData.is_active = input.is_active;
 
     // 보상 업데이트
-    const { data: reward, error } = await supabase
+    const { data: reward, error }: SupabaseQueryResult<RewardRow> = await supabase
       .from('rewards')
       .update({
         ...updateData,
@@ -80,10 +86,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
 
     // 기존 보상 확인
-    const { data: existingReward, error: fetchError } = await supabase
+    const { data: existingReward, error: fetchError }: SupabaseQueryResult<RewardRow> = await supabase
       .from('rewards')
       .select('id')
       .eq('id', id)

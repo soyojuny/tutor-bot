@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { RewardRow, ProfileRow, PointsLedgerRow, RedemptionRow } from '@/lib/supabase/types';
+
+// Supabase 타입 체인 호환성을 위한 타입
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQueryResult<T> = { data: T | null; error: any };
 
 /**
  * GET /api/rewards/redemptions?profile_id=xxx
@@ -7,7 +12,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
     const searchParams = request.nextUrl.searchParams;
     const profileId = searchParams.get('profile_id');
     const status = searchParams.get('status');
@@ -24,7 +30,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', status);
     }
 
-    const { data: redemptions, error } = await query;
+    const { data: redemptions, error }: SupabaseQueryResult<RedemptionRow[]> = await query;
 
     if (error) {
       console.error('Error fetching redemptions:', error);
@@ -61,10 +67,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
 
     // 보상 정보 확인
-    const { data: reward, error: rewardError } = await supabase
+    const { data: reward, error: rewardError }: SupabaseQueryResult<RewardRow> = await supabase
       .from('rewards')
       .select('*')
       .eq('id', reward_id)
@@ -85,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 프로필 확인
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError }: SupabaseQueryResult<ProfileRow> = await supabase
       .from('profiles')
       .select('role')
       .eq('id', profile_id)
@@ -99,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 현재 포인트 잔액 조회
-    const { data: latestTransaction, error: balanceError } = await supabase
+    const { data: latestTransaction }: SupabaseQueryResult<PointsLedgerRow> = await supabase
       .from('points_ledger')
       .select('balance_after')
       .eq('profile_id', profile_id)
@@ -107,7 +114,7 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .single();
 
-    const currentBalance = latestTransaction?.balance_after || 0;
+    const currentBalance = latestTransaction?.balance_after ?? 0;
 
     // 포인트 충분한지 확인
     if (currentBalance < reward.points_cost) {
@@ -141,7 +148,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. 교환 요청 생성
-    const { data: redemption, error: redemptionError } = await supabase
+    const { data: redemption, error: redemptionError }: SupabaseQueryResult<RedemptionRow> = await supabase
       .from('reward_redemptions')
       .insert({
         reward_id,

@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware';
 import { Profile } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 import { verifyPin } from '@/lib/utils/auth';
+import { Database } from '@/types/database.types';
+
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 interface AuthState {
   currentUser: Profile | null;
@@ -23,16 +26,18 @@ export const useAuthStore = create<AuthState>()(
           const supabase = createClient();
 
           // Fetch profile by ID
-          const { data: profile, error } = await supabase
+          const { data, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', profileId)
             .single();
 
-          if (error || !profile) {
+          if (error || !data) {
             console.error('Profile not found:', error);
             return false;
           }
+
+          const profile = data as ProfileRow;
 
           // Verify PIN using bcrypt
           // Check if PIN is hashed (starts with $2a$ or $2b$) or plain text

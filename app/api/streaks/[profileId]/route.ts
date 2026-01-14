@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { DailyStreakRow } from '@/lib/supabase/types';
+
+// Supabase 타입 체인 호환성을 위한 타입
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQueryResult<T> = { data: T | null; error: any };
 
 // GET /api/streaks/[profileId] - 프로필의 연속 달성일 조회
 export async function GET(
@@ -8,9 +13,10 @@ export async function GET(
 ) {
   try {
     const { profileId } = await params;
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
 
-    const { data: streak, error } = await supabase
+    const { data: streak, error }: SupabaseQueryResult<DailyStreakRow> = await supabase
       .from('daily_streaks')
       .select('*')
       .eq('profile_id', profileId)
@@ -33,7 +39,7 @@ export async function GET(
   } catch (error) {
     console.error('[API] Error fetching streak:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch streak' },
+      { error: '스트릭 조회에 실패했습니다.' },
       { status: 500 }
     );
   }
@@ -46,12 +52,13 @@ export async function POST(
 ) {
   try {
     const { profileId } = await params;
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     // 기존 연속 달성일 조회
-    const { data: existingStreak, error: fetchError } = await supabase
+    const { data: existingStreak, error: fetchError }: SupabaseQueryResult<DailyStreakRow> = await supabase
       .from('daily_streaks')
       .select('*')
       .eq('profile_id', profileId)
@@ -83,7 +90,7 @@ export async function POST(
       }
 
       // 기존 레코드 업데이트
-      const { data, error } = await supabase
+      const { data, error }: SupabaseQueryResult<DailyStreakRow> = await supabase
         .from('daily_streaks')
         .update({
           streak_count: newStreakCount,
@@ -99,7 +106,7 @@ export async function POST(
       return NextResponse.json(data);
     } else {
       // 신규 레코드 생성
-      const { data, error } = await supabase
+      const { data, error }: SupabaseQueryResult<DailyStreakRow> = await supabase
         .from('daily_streaks')
         .insert({
           profile_id: profileId,
@@ -116,7 +123,7 @@ export async function POST(
   } catch (error) {
     console.error('[API] Error updating streak:', error);
     return NextResponse.json(
-      { error: 'Failed to update streak' },
+      { error: '스트릭 업데이트에 실패했습니다.' },
       { status: 500 }
     );
   }

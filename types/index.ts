@@ -14,12 +14,4 @@ export * from './points.types';
 export * from './reward.types';
 
 // Streak types
-export interface DailyStreak {
-  id: string;
-  profile_id: string;
-  streak_count: number;
-  last_activity_date: string;
-  longest_streak: number;
-  created_at: string;
-  updated_at: string;
-}
+export * from './streak.types';

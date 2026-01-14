@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { Database } from '@/types';
+import { ActivityRow, ProfileRow, PointsLedgerRow, DailyStreakRow } from '@/lib/supabase/types';
 
-type ActivityRow = Database['public']['Tables']['activities']['Row'];
-type ActivityUpdate = Database['public']['Tables']['activities']['Update'];
-type PointsLedgerInsert = Database['public']['Tables']['points_ledger']['Insert'];
-type DailyStreakRow = Database['public']['Tables']['daily_streaks']['Row'];
-type DailyStreakInsert = Database['public']['Tables']['daily_streaks']['Insert'];
-type DailyStreakUpdate = Database['public']['Tables']['daily_streaks']['Update'];
+// Supabase 타입 체인 호환성을 위한 타입
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQueryResult<T> = { data: T | null; error: any };
 
 /**
  * POST /api/activities/[id]/verify
@@ -29,21 +26,25 @@ export async function POST(
       );
     }
 
-    const supabase = createAdminClient();
+    // Supabase 타입 체인 문제로 인해 타입 단언 사용
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
 
     // 기존 활동 확인
-    const { data: activity, error: fetchError } = await supabase
+    const { data: activityData, error: fetchError }: SupabaseQueryResult<ActivityRow> = await supabase
       .from('activities')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (fetchError || !activity) {
+    if (fetchError || !activityData) {
       return NextResponse.json(
         { error: '활동을 찾을 수 없습니다.' },
         { status: 404 }
       );
     }
+
+    const activity = activityData;
 
     // 검증 가능 상태 확인
     if (activity.status !== 'completed') {
@@ -62,13 +63,13 @@ export async function POST(
     }
 
     // 검증자 권한 확인 (부모여야 함)
-    const { data: verifier, error: verifierError } = await supabase
+    const { data: verifierData, error: verifierError }: SupabaseQueryResult<ProfileRow> = await supabase
       .from('profiles')
       .select('role')
       .eq('id', verified_by)
       .single();
 
-    if (verifierError || !verifier || verifier.role !== 'parent') {
+    if (verifierError || !verifierData || verifierData.role !== 'parent') {
       return NextResponse.json(
         { error: '부모만 활동을 검증할 수 있습니다.' },
         { status: 403 }
@@ -76,7 +77,7 @@ export async function POST(
     }
 
     // 현재 포인트 잔액 조회
-    const { data: latestTransaction, error: balanceError } = await supabase
+    const { data: latestTransactionData }: SupabaseQueryResult<PointsLedgerRow> = await supabase
       .from('points_ledger')
       .select('balance_after')
       .eq('profile_id', activity.assigned_to)
@@ -84,7 +85,7 @@ export async function POST(
       .limit(1)
       .single();
 
-    const previousBalance = latestTransaction?.balance_after || 0;
+    const previousBalance = latestTransactionData?.balance_after ?? 0;
     const newBalance = previousBalance + activity.points_value;
 
     // 트랜잭션 시작: 활동 상태 업데이트 + 포인트 지급
@@ -112,7 +113,7 @@ export async function POST(
     }
 
     // 2. 활동 상태를 verified로 업데이트
-    const { data: updatedActivity, error: updateError } = await supabase
+    const { data: updatedActivityData, error: updateError }: SupabaseQueryResult<ActivityRow> = await supabase
       .from('activities')
       .update({
         status: 'verified',
@@ -137,23 +138,23 @@ export async function POST(
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const { data: existingStreak } = await supabase
+      const { data: existingStreakData }: SupabaseQueryResult<DailyStreakRow> = await supabase
         .from('daily_streaks')
         .select('*')
         .eq('profile_id', activity.assigned_to)
         .single();
 
-      if (existingStreak) {
-        const lastDate = new Date(existingStreak.last_activity_date);
+      if (existingStreakData) {
+        const lastDate = new Date(existingStreakData.last_activity_date);
         const todayDate = new Date(today);
         const diffDays = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
 
-        let newStreakCount = existingStreak.streak_count;
-        let newLongestStreak = existingStreak.longest_streak;
+        let newStreakCount = existingStreakData.streak_count;
+        let newLongestStreak = existingStreakData.longest_streak;
 
         if (diffDays === 1) {
-          newStreakCount = existingStreak.streak_count + 1;
-          newLongestStreak = Math.max(newStreakCount, existingStreak.longest_streak);
+          newStreakCount = existingStreakData.streak_count + 1;
+          newLongestStreak = Math.max(newStreakCount, existingStreakData.longest_streak);
         } else if (diffDays > 1) {
           newStreakCount = 1;
         }
@@ -183,7 +184,7 @@ export async function POST(
     }
 
     return NextResponse.json({
-      activity: updatedActivity,
+      activity: updatedActivityData,
       points_awarded: activity.points_value,
       new_balance: newBalance,
     });
