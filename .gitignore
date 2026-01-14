@@ -41,3 +41,7 @@ next-env.d.ts
 **/public/worker-*
 **/public/sw.js
 **/public/fallback-*
+**/public/swe-worker-*
+
+# Claude Code temp files
+tmpclaude-*
