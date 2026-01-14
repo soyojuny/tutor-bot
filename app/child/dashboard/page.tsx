@@ -133,7 +133,7 @@ export default function ChildDashboard() {
           <Card
             hoverable
             onClick={() => router.push('/child/rewards')}
-            className="cursor-pointer opacity-50"
+            className="cursor-pointer"
           >
             <div className="flex items-center gap-4">
               <div className="p-3 bg-pink-100 rounded-lg">
@@ -141,7 +141,7 @@ export default function ChildDashboard() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 text-xl">보상 교환</h3>
-                <p className="text-sm text-gray-600">곧 만들 예정이에요!</p>
+                <p className="text-sm text-gray-600">포인트로 보상 받기</p>
               </div>
             </div>
           </Card>
