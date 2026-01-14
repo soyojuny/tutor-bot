@@ -172,7 +172,7 @@ export default function ParentDashboard() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">모니터링</h3>
-                <p className="text-sm text-gray-600">진행 상황 (예정)</p>
+                <p className="text-sm text-gray-600">진행 상황 분석</p>
               </div>
             </div>
           </Card>
