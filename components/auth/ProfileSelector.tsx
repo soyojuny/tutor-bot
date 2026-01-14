@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { Profile } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 
@@ -21,14 +20,19 @@ export default function ProfileSelector() {
 
   async function fetchProfiles() {
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('role', { ascending: false }); // Parent first
+      // API를 통해 프로필 조회 (DB 직접 접근 대신)
+      const response = await fetch('/api/profiles');
+      const data = await response.json();
 
-      if (error) throw error;
-      setProfiles(data || []);
+      if (!response.ok) {
+        throw new Error(data.error || '프로필 조회 실패');
+      }
+
+      // 부모를 먼저 표시하도록 정렬
+      const sortedProfiles = (data.profiles || []).sort(
+        (a: Profile, b: Profile) => (a.role === 'parent' ? -1 : 1)
+      );
+      setProfiles(sortedProfiles);
     } catch (err) {
       console.error('Error fetching profiles:', err);
       setError('프로필을 불러오는데 실패했습니다.');

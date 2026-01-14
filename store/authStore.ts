@@ -1,17 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Profile } from '@/types';
-import { createClient } from '@/lib/supabase/client';
-import { verifyPin } from '@/lib/utils/auth';
-import { Database } from '@/types/database.types';
-
-type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 interface AuthState {
   currentUser: Profile | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (profileId: string, pin: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  checkSession: () => Promise<void>;
   setCurrentUser: (user: Profile | null) => void;
 }
 
@@ -20,62 +17,94 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       currentUser: null,
       isAuthenticated: false,
+      isLoading: false,
 
       login: async (profileId: string, pin: string) => {
         try {
-          const supabase = createClient();
+          set({ isLoading: true });
 
-          // Fetch profile by ID
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', profileId)
-            .single();
+          // 서버 API로 로그인 요청 (세션 쿠키 설정됨)
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ profileId, pin }),
+            credentials: 'include',
+          });
 
-          if (error || !data) {
-            console.error('Profile not found:', error);
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            console.error('Login failed:', data.error);
+            set({ isLoading: false });
             return false;
           }
 
-          const profile = data as ProfileRow;
-
-          // Verify PIN using bcrypt
-          // Check if PIN is hashed (starts with $2a$ or $2b$) or plain text
-          const isHashed = profile.pin_code.startsWith('$2a$') || profile.pin_code.startsWith('$2b$');
-
-          let isPinValid = false;
-          if (isHashed) {
-            // Use bcrypt to verify hashed PIN
-            isPinValid = await verifyPin(pin, profile.pin_code);
-          } else {
-            // Fallback to plain text comparison for backward compatibility
-            // TODO: Migrate all PINs to hashed format
-            isPinValid = profile.pin_code === pin;
-          }
-
-          if (!isPinValid) {
-            console.error('Invalid PIN');
-            return false;
-          }
-
-          // Set authenticated user
+          // 로그인 성공
           set({
-            currentUser: profile,
+            currentUser: data.user,
             isAuthenticated: true,
+            isLoading: false,
           });
 
           return true;
         } catch (error) {
           console.error('Login error:', error);
+          set({ isLoading: false });
           return false;
         }
       },
 
-      logout: () => {
-        set({
-          currentUser: null,
-          isAuthenticated: false,
-        });
+      logout: async () => {
+        try {
+          // 서버 API로 로그아웃 요청 (세션 쿠키 삭제)
+          await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include',
+          });
+        } catch (error) {
+          console.error('Logout error:', error);
+        } finally {
+          set({
+            currentUser: null,
+            isAuthenticated: false,
+          });
+        }
+      },
+
+      checkSession: async () => {
+        try {
+          set({ isLoading: true });
+
+          const response = await fetch('/api/auth/me', {
+            credentials: 'include',
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.user) {
+              set({
+                currentUser: data.user,
+                isAuthenticated: true,
+                isLoading: false,
+              });
+              return;
+            }
+          }
+
+          // 세션 없음 또는 만료
+          set({
+            currentUser: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+        } catch (error) {
+          console.error('Session check error:', error);
+          set({
+            currentUser: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+        }
       },
 
       setCurrentUser: (user: Profile | null) => {

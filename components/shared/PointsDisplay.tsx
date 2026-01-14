@@ -8,9 +8,10 @@ interface PointsDisplayProps {
   balance: number;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  label?: string;
 }
 
-export default function PointsDisplay({ balance, size = 'md', className }: PointsDisplayProps) {
+export default function PointsDisplay({ balance, size = 'md', className, label }: PointsDisplayProps) {
   const { user } = useAuth();
   const role = user?.role || 'child';
 
@@ -37,7 +38,7 @@ export default function PointsDisplay({ balance, size = 'md', className }: Point
           <Trophy className={`${iconSizes[size]} ${iconColor}`} />
         </div>
         <div>
-          <div className="text-sm text-gray-600">포인트</div>
+          <div className="text-sm text-gray-600">{label ? `${label}의 포인트` : '포인트'}</div>
           <div className={`font-bold text-gray-900 ${sizeClasses[size]}`}>
             {balance.toLocaleString()}P
           </div>

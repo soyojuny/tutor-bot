@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { useActivityStore } from '@/store/activityStore';
 import { useRewardStore } from '@/store/rewardStore';
-import { Profile, Activity } from '@/types';
+import { Profile } from '@/types';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
 import PointsDisplay from '@/components/shared/PointsDisplay';
@@ -35,28 +34,32 @@ export default function ParentDashboard() {
 
   async function fetchChildProfilesAndPoints() {
     try {
-      const supabase = createClient();
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'child')
-        .order('age', { ascending: false });
+      // API를 통해 아이 프로필 조회
+      const response = await fetch('/api/profiles?role=child');
+      const data = await response.json();
 
-      if (error) throw error;
-      setChildProfiles(profiles || []);
+      if (!response.ok) {
+        throw new Error(data.error || '프로필 조회 실패');
+      }
+
+      // 나이순 정렬 (내림차순)
+      const profiles = (data.profiles || []).sort(
+        (a: Profile, b: Profile) => (b.age || 0) - (a.age || 0)
+      );
+      setChildProfiles(profiles);
 
       // 각 아이의 포인트 잔액 조회
       const balances: Record<string, number> = {};
-      for (const profile of profiles || []) {
+      for (const profile of profiles) {
         try {
-          const response = await fetch(`/api/points?profile_id=${(profile as any).id}`);
-          if (response.ok) {
-            const data = await response.json();
-            balances[(profile as any).id] = data.current_balance || 0;
+          const pointsResponse = await fetch(`/api/points?profile_id=${profile.id}`);
+          if (pointsResponse.ok) {
+            const pointsData = await pointsResponse.json();
+            balances[profile.id] = pointsData.current_balance || 0;
           }
         } catch (err) {
-          console.error(`Error fetching points for ${(profile as any).id}:`, err);
-          balances[(profile as any).id] = 0;
+          console.error(`Error fetching points for ${profile.id}:`, err);
+          balances[profile.id] = 0;
         }
       }
       setChildBalances(balances);
@@ -180,9 +183,10 @@ export default function ParentDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {childProfiles.map((child) => (
               <PointsDisplay
-                key={(child as any).id}
-                balance={childBalances[(child as any).id] || 0}
+                key={child.id}
+                balance={childBalances[child.id] || 0}
                 size="md"
+                label={child.name}
               />
             ))}
           </div>

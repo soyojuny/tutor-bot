@@ -8,7 +8,6 @@ import { ACTIVITY_CATEGORIES, DEFAULT_POINTS_BY_CATEGORY } from '@/lib/constants
 import Modal from '@/components/shared/Modal';
 import Input from '@/components/shared/Input';
 import Button from '@/components/shared/Button';
-import { createClient } from '@/lib/supabase/client';
 
 interface ActivityFormProps {
   isOpen: boolean;
@@ -70,15 +69,18 @@ export default function ActivityForm({ isOpen, onClose, onSuccess, activityToEdi
   async function fetchChildProfiles() {
     setLoadingProfiles(true);
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'child')
-        .order('age', { ascending: false });
+      const response = await fetch('/api/profiles?role=child');
+      const data = await response.json();
 
-      if (error) throw error;
-      setChildProfiles(data || []);
+      if (!response.ok) {
+        throw new Error(data.error || '프로필 조회 실패');
+      }
+
+      // 나이순 정렬 (내림차순)
+      const sortedProfiles = (data.profiles || []).sort(
+        (a: Profile, b: Profile) => (b.age || 0) - (a.age || 0)
+      );
+      setChildProfiles(sortedProfiles);
     } catch (err) {
       console.error('Error fetching child profiles:', err);
     } finally {

@@ -1,31 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getSessionFromRequest, requireAuth, requireParent } from '@/lib/auth/session';
 import { UpdateActivityInput } from '@/types';
 import { ActivityRow, ActivityUpdate } from '@/lib/supabase/types';
 
-// Supabase 타입 체인 호환성을 위한 타입
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseQueryResult<T> = { data: T | null; error: any };
-
 /**
  * PATCH /api/activities/[id]
- * 활동 업데이트
+ * 활동 업데이트 (인증 필요, 역할별 권한 검증)
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 세션 검증
+    const session = await getSessionFromRequest(request);
+    if (!requireAuth(session)) {
+      return NextResponse.json(
+        { error: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
     const input = body as UpdateActivityInput;
 
-    // Supabase 타입 체인 문제로 인해 타입 단언 사용
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
 
     // 기존 활동 확인
-    const { data: existingActivityData, error: fetchError }: SupabaseQueryResult<ActivityRow> = await supabase
+    const { data: existingActivityData, error: fetchError } = await supabase
       .from('activities')
       .select('*')
       .eq('id', id)
@@ -38,19 +43,42 @@ export async function PATCH(
       );
     }
 
-    const existingActivity = existingActivityData;
+    const existingActivity = existingActivityData as ActivityRow;
+
+    // 권한 검증: 아이는 자신에게 할당된 활동만 상태 변경 가능
+    if (session.role === 'child') {
+      if (existingActivity.assigned_to !== session.userId) {
+        return NextResponse.json(
+          { error: '이 활동을 수정할 권한이 없습니다.' },
+          { status: 403 }
+        );
+      }
+      // 아이는 상태만 변경 가능 (시작/완료)
+      const allowedStatuses = ['in_progress', 'completed'];
+      if (input.status && !allowedStatuses.includes(input.status)) {
+        return NextResponse.json(
+          { error: '허용되지 않은 상태 변경입니다.' },
+          { status: 403 }
+        );
+      }
+    }
 
     // 업데이트할 필드 준비
     const updates: ActivityUpdate = {
       updated_at: new Date().toISOString(),
     };
 
-    if (input.title !== undefined) updates.title = input.title;
-    if (input.description !== undefined) updates.description = input.description;
-    if (input.category !== undefined) updates.category = input.category;
-    if (input.points_value !== undefined) updates.points_value = input.points_value;
+    // 부모만 모든 필드 수정 가능
+    if (session.role === 'parent') {
+      if (input.title !== undefined) updates.title = input.title;
+      if (input.description !== undefined) updates.description = input.description;
+      if (input.category !== undefined) updates.category = input.category;
+      if (input.points_value !== undefined) updates.points_value = input.points_value;
+      if (input.due_date !== undefined) updates.due_date = input.due_date;
+    }
+
+    // 상태 업데이트 (부모/아이 모두)
     if (input.status !== undefined) updates.status = input.status;
-    if (input.due_date !== undefined) updates.due_date = input.due_date;
 
     // 상태 전환 시 타임스탬프 업데이트
     if (input.status === 'completed' && existingActivity.status !== 'completed') {
@@ -61,7 +89,7 @@ export async function PATCH(
     }
 
     // 활동 업데이트
-    const { data: activity, error }: SupabaseQueryResult<ActivityRow> = await supabase
+    const { data: activity, error } = await supabase
       .from('activities')
       .update(updates)
       .eq('id', id)
@@ -76,7 +104,7 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({ activity });
+    return NextResponse.json({ activity: activity as ActivityRow });
   } catch (error) {
     console.error('Error in PATCH /api/activities/[id]:', error);
     const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
@@ -89,13 +117,22 @@ export async function PATCH(
 
 /**
  * DELETE /api/activities/[id]
- * 활동 삭제
+ * 활동 삭제 (부모만 가능)
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 세션 검증 - 부모만 삭제 가능
+    const session = await getSessionFromRequest(request);
+    if (!requireParent(session)) {
+      return NextResponse.json(
+        { error: '활동 삭제는 부모만 가능합니다.' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;

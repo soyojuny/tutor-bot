@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getSessionFromRequest, requireAuth, requireParent } from '@/lib/auth/session';
 import { CreateActivityInput } from '@/types';
 import { ActivityRow, ProfileRow } from '@/lib/supabase/types';
 
-// Supabase 타입 체인 호환성을 위한 타입
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseQueryResult<T> = { data: T | null; error: any };
-
 /**
  * GET /api/activities
- * 활동 목록 조회
+ * 활동 목록 조회 (인증 필요)
  */
 export async function GET(request: NextRequest) {
   try {
+    // 세션 검증
+    const session = await getSessionFromRequest(request);
+    if (!requireAuth(session)) {
+      return NextResponse.json(
+        { error: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
     const searchParams = request.nextUrl.searchParams;
@@ -37,7 +43,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('created_by', createdBy);
     }
 
-    const { data: activities, error }: SupabaseQueryResult<ActivityRow[]> = await query;
+    const { data: activities, error } = await query;
 
     if (error) {
       console.error('Error fetching activities:', error);
@@ -60,12 +66,21 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/activities
- * 새 활동 생성
+ * 새 활동 생성 (부모만 가능)
  */
 export async function POST(request: NextRequest) {
   try {
+    // 세션 검증 - 부모만 활동 생성 가능
+    const session = await getSessionFromRequest(request);
+    if (!requireParent(session)) {
+      return NextResponse.json(
+        { error: '활동은 부모만 생성할 수 있습니다.' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
-    const { created_by, ...input } = body as CreateActivityInput & { created_by: string };
+    const input = body as CreateActivityInput;
 
     // 입력 검증
     if (!input.title || !input.category) {
@@ -75,45 +90,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!created_by) {
-      return NextResponse.json(
-        { error: '생성자 ID가 필요합니다.' },
-        { status: 400 }
-      );
-    }
-
-    // 권한 검증: 생성자는 부모여야 함
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
-    const { data: creatorData, error: creatorError }: SupabaseQueryResult<ProfileRow> = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', created_by)
-      .single();
-
-    if (creatorError || !creatorData) {
-      return NextResponse.json(
-        { error: '유효하지 않은 사용자입니다.' },
-        { status: 400 }
-      );
-    }
-
-    if (creatorData.role !== 'parent') {
-      return NextResponse.json(
-        { error: '활동은 부모만 생성할 수 있습니다.' },
-        { status: 403 }
-      );
-    }
 
     // assigned_to가 있으면 해당 프로필이 존재하는지 확인
     if (input.assigned_to) {
-      const { data: assigneeData, error: assigneeError }: SupabaseQueryResult<ProfileRow> = await supabase
+      const { data: assigneeData, error: assigneeError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', input.assigned_to)
         .single();
 
-      if (assigneeError || !assigneeData || assigneeData.role !== 'child') {
+      if (assigneeError || !assigneeData || (assigneeData as ProfileRow).role !== 'child') {
         return NextResponse.json(
           { error: '유효하지 않은 할당 대상입니다.' },
           { status: 400 }
@@ -121,12 +109,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 활동 생성
-    const { data: activity, error }: SupabaseQueryResult<ActivityRow> = await supabase
+    // 활동 생성 - 세션에서 사용자 ID 사용
+    const { data: activity, error } = await supabase
       .from('activities')
       .insert({
         ...input,
-        created_by,
+        created_by: session.userId,
         status: 'pending',
       })
       .select()
@@ -140,7 +128,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ activity }, { status: 201 });
+    return NextResponse.json({ activity: activity as ActivityRow }, { status: 201 });
   } catch (error) {
     console.error('Error in POST /api/activities:', error);
     const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
