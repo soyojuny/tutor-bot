@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getSessionFromRequest, requireAuth, requireParent } from '@/lib/auth/session';
-import { CreateActivityInput } from '@/types';
+import { CreateActivityInput, Activity, ActivityWithTodayStatus, ActivityCompletion } from '@/types';
 import { ActivityRow, ProfileRow } from '@/lib/supabase/types';
+import { isAvailableToday } from '@/lib/constants/activities';
 
 /**
  * GET /api/activities
@@ -53,7 +54,58 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ activities: activities || [] });
+    // include_today_status 파라미터가 있으면 당일 완료 정보 추가
+    const includeTodayStatus = searchParams.get('include_today_status') === 'true';
+
+    if (includeTodayStatus && activities && activities.length > 0) {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const activityIds = activities.map((a: ActivityRow) => a.id);
+
+      // 오늘의 완료 기록 조회
+      const { data: completions } = await supabase
+        .from('activity_completions')
+        .select('*')
+        .in('activity_id', activityIds)
+        .eq('completed_date', today);
+
+      // 검증 대기 중인 완료 기록 조회 (assignedTo 기준)
+      let pendingCompletions: ActivityCompletion[] = [];
+      if (assignedTo) {
+        const { data: pending } = await supabase
+          .from('activity_completions')
+          .select('*')
+          .eq('profile_id', assignedTo)
+          .eq('status', 'completed');
+        pendingCompletions = (pending || []) as ActivityCompletion[];
+      }
+
+      const activitiesWithStatus: ActivityWithTodayStatus[] = activities.map((activity: ActivityRow) => {
+        const activityCompletions = (completions || []).filter(
+          (c: { activity_id: string; profile_id: string }) =>
+            c.activity_id === activity.id &&
+            (assignedTo ? c.profile_id === assignedTo : true)
+        );
+        const todayCount = activityCompletions.length;
+        const isAvailable = isAvailableToday(activity.frequency);
+        const canComplete = activity.is_template
+          ? isAvailable && todayCount < activity.max_daily_count
+          : activity.status === 'pending' || activity.status === 'in_progress';
+
+        return {
+          ...activity,
+          today_completion_count: todayCount,
+          can_complete_today: canComplete,
+          is_available_today: isAvailable,
+          pending_completions: pendingCompletions.filter(
+            (c: ActivityCompletion) => c.activity_id === activity.id
+          ),
+        } as ActivityWithTodayStatus;
+      });
+
+      return NextResponse.json({ activities: activitiesWithStatus });
+    }
+
+    return NextResponse.json({ activities: (activities || []) as Activity[] });
   } catch (error) {
     console.error('Error in GET /api/activities:', error);
     const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
@@ -109,6 +161,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 빈도 기반 is_template 결정
+    const frequency = input.frequency || 'once';
+    const isTemplate = frequency !== 'once';
+    const maxDailyCount = input.max_daily_count || 1;
+
     // 활동 생성 - 세션에서 사용자 ID 사용
     const { data: activity, error } = await supabase
       .from('activities')
@@ -116,6 +173,9 @@ export async function POST(request: NextRequest) {
         ...input,
         created_by: session.userId,
         status: 'pending',
+        frequency,
+        max_daily_count: maxDailyCount,
+        is_template: isTemplate,
       })
       .select()
       .single();

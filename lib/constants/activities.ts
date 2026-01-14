@@ -1,4 +1,4 @@
-import { ActivityCategory } from '@/types';
+import { ActivityCategory, ActivityFrequency } from '@/types';
 
 export const ACTIVITY_CATEGORIES: {
   value: ActivityCategory;
@@ -59,3 +59,57 @@ export const DEFAULT_POINTS_BY_CATEGORY: Record<ActivityCategory, number> = {
   practice: 15,
   other: 10,
 };
+
+// 활동 빈도 관련 상수
+export const ACTIVITY_FREQUENCIES: {
+  value: ActivityFrequency;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: 'once',
+    label: '한 번',
+    description: '일회성 활동',
+  },
+  {
+    value: 'weekdays',
+    label: '주중',
+    description: '월~금요일 반복',
+  },
+  {
+    value: 'daily',
+    label: '매일',
+    description: '매일 반복',
+  },
+];
+
+export const ACTIVITY_FREQUENCY_LABELS: Record<ActivityFrequency, string> = {
+  once: '한 번',
+  weekdays: '주중',
+  daily: '매일',
+};
+
+// 주중(weekdays) 요일 정의 (월~금, 0=일요일)
+export const WEEKDAYS = [1, 2, 3, 4, 5]; // Monday to Friday
+
+// 오늘이 해당 빈도에 맞는 날인지 확인
+export function isAvailableToday(frequency: ActivityFrequency): boolean {
+  if (frequency === 'once') return true; // 일회성은 항상 가능 (상태로 제어)
+  if (frequency === 'daily') return true;
+  if (frequency === 'weekdays') {
+    const today = new Date().getDay();
+    return WEEKDAYS.includes(today);
+  }
+  return false;
+}
+
+// 완료 상태 라벨
+export const COMPLETION_STATUS_LABELS = {
+  completed: '완료 (검증 대기)',
+  verified: '검증됨',
+} as const;
+
+export const COMPLETION_STATUS_COLORS = {
+  completed: 'bg-yellow-100 text-yellow-800',
+  verified: 'bg-emerald-100 text-emerald-800',
+} as const;

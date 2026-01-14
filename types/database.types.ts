@@ -57,6 +57,9 @@ export interface Database {
           verified_by: string | null;
           created_at: string;
           updated_at: string;
+          frequency: 'once' | 'weekdays' | 'daily';
+          max_daily_count: number;
+          is_template: boolean;
         };
         Insert: {
           id?: string;
@@ -73,6 +76,9 @@ export interface Database {
           verified_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          frequency?: 'once' | 'weekdays' | 'daily';
+          max_daily_count?: number;
+          is_template?: boolean;
         };
         Update: {
           id?: string;
@@ -87,6 +93,53 @@ export interface Database {
           completed_at?: string | null;
           verified_at?: string | null;
           verified_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          frequency?: 'once' | 'weekdays' | 'daily';
+          max_daily_count?: number;
+          is_template?: boolean;
+        };
+      };
+      activity_completions: {
+        Row: {
+          id: string;
+          activity_id: string;
+          profile_id: string;
+          completed_date: string;
+          completed_at: string;
+          status: 'completed' | 'verified';
+          verified_at: string | null;
+          verified_by: string | null;
+          metadata: Record<string, unknown>;
+          points_awarded: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          activity_id: string;
+          profile_id: string;
+          completed_date?: string;
+          completed_at?: string;
+          status?: 'completed' | 'verified';
+          verified_at?: string | null;
+          verified_by?: string | null;
+          metadata?: Record<string, unknown>;
+          points_awarded?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          activity_id?: string;
+          profile_id?: string;
+          completed_date?: string;
+          completed_at?: string;
+          status?: 'completed' | 'verified';
+          verified_at?: string | null;
+          verified_by?: string | null;
+          metadata?: Record<string, unknown>;
+          points_awarded?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -135,6 +188,7 @@ export interface Database {
           profile_id: string | null;
           activity_id: string | null;
           reward_id: string | null;
+          completion_id: string | null;
           points_change: number;
           balance_after: number;
           transaction_type: 'earned' | 'spent' | 'adjusted' | 'bonus';
@@ -146,6 +200,7 @@ export interface Database {
           profile_id?: string | null;
           activity_id?: string | null;
           reward_id?: string | null;
+          completion_id?: string | null;
           points_change: number;
           balance_after: number;
           transaction_type: 'earned' | 'spent' | 'adjusted' | 'bonus';
@@ -157,6 +212,7 @@ export interface Database {
           profile_id?: string | null;
           activity_id?: string | null;
           reward_id?: string | null;
+          completion_id?: string | null;
           points_change?: number;
           balance_after?: number;
           transaction_type?: 'earned' | 'spent' | 'adjusted' | 'bonus';

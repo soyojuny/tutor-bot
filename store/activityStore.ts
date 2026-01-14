@@ -1,10 +1,21 @@
 import { create } from 'zustand';
-import { Activity, CreateActivityInput, UpdateActivityInput } from '@/types';
+import {
+  Activity,
+  ActivityWithTodayStatus,
+  ActivityCompletion,
+  ActivityCompletionMetadata,
+  CreateActivityInput,
+  UpdateActivityInput,
+} from '@/types';
 
 interface ActivityState {
   activities: Activity[];
+  todayActivities: ActivityWithTodayStatus[];
+  pendingCompletions: ActivityCompletion[];
   isLoading: boolean;
   error: string | null;
+
+  // 기존 액션
   fetchActivities: () => Promise<void>;
   createActivity: (input: CreateActivityInput, createdBy: string) => Promise<Activity | null>;
   updateActivity: (id: string, input: UpdateActivityInput) => Promise<Activity | null>;
@@ -15,10 +26,21 @@ interface ActivityState {
   startActivity: (id: string) => Promise<Activity | null>;
   completeActivity: (id: string) => Promise<Activity | null>;
   verifyActivity: (id: string, verifiedBy: string) => Promise<Activity | null>;
+
+  // 반복 활동 관련 신규 액션
+  fetchTodayActivities: (profileId: string) => Promise<void>;
+  completeRepeatingActivity: (
+    activityId: string,
+    metadata?: ActivityCompletionMetadata
+  ) => Promise<ActivityCompletion | null>;
+  fetchPendingCompletions: (profileId?: string) => Promise<void>;
+  verifyCompletion: (completionId: string) => Promise<ActivityCompletion | null>;
 }
 
 export const useActivityStore = create<ActivityState>((set, get) => ({
   activities: [],
+  todayActivities: [],
+  pendingCompletions: [],
   isLoading: false,
   error: null,
 
@@ -182,6 +204,137 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : '활동 검증 중 오류가 발생했습니다.';
       set({ error: errorMessage });
       console.error('Error verifying activity:', error);
+      return null;
+    }
+  },
+
+  // 반복 활동 관련 신규 액션
+
+  fetchTodayActivities: async (profileId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(
+        `/api/activities?assigned_to=${profileId}&include_today_status=true`
+      );
+      if (!response.ok) {
+        throw new Error('오늘의 활동을 불러오는데 실패했습니다.');
+      }
+      const data = await response.json();
+      set({
+        todayActivities: data.activities || [],
+        isLoading: false,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      set({ error: errorMessage, isLoading: false });
+      console.error('Error fetching today activities:', error);
+    }
+  },
+
+  completeRepeatingActivity: async (
+    activityId: string,
+    metadata?: ActivityCompletionMetadata
+  ) => {
+    set({ error: null });
+    try {
+      const response = await fetch(`/api/activities/${activityId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ metadata }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '활동 완료에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      const completion = data.completion as ActivityCompletion;
+
+      // todayActivities 업데이트
+      set((state) => ({
+        todayActivities: state.todayActivities.map((activity) =>
+          activity.id === activityId
+            ? {
+                ...activity,
+                today_completion_count: data.today_count,
+                can_complete_today: data.remaining_today > 0,
+                pending_completions: [...activity.pending_completions, completion],
+              }
+            : activity
+        ),
+      }));
+
+      return completion;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : '활동 완료 중 오류가 발생했습니다.';
+      set({ error: errorMessage });
+      console.error('Error completing repeating activity:', error);
+      return null;
+    }
+  },
+
+  fetchPendingCompletions: async (profileId?: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      let url = '/api/completions?status=completed';
+      if (profileId) {
+        url += `&profile_id=${profileId}`;
+      }
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('검증 대기 목록을 불러오는데 실패했습니다.');
+      }
+      const data = await response.json();
+      set({
+        pendingCompletions: data.completions || [],
+        isLoading: false,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      set({ error: errorMessage, isLoading: false });
+      console.error('Error fetching pending completions:', error);
+    }
+  },
+
+  verifyCompletion: async (completionId: string) => {
+    set({ error: null });
+    try {
+      const response = await fetch(`/api/completions/${completionId}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '완료 기록 검증에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      const verifiedCompletion = data.completion as ActivityCompletion;
+
+      // pendingCompletions에서 제거
+      set((state) => ({
+        pendingCompletions: state.pendingCompletions.filter(
+          (c) => c.id !== completionId
+        ),
+      }));
+
+      return verifiedCompletion;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : '완료 기록 검증 중 오류가 발생했습니다.';
+      set({ error: errorMessage });
+      console.error('Error verifying completion:', error);
       return null;
     }
   },

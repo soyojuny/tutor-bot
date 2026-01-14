@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityStore } from '@/store/activityStore';
-import { Activity, CreateActivityInput, Profile, ActivityCategory } from '@/types';
-import { ACTIVITY_CATEGORIES, DEFAULT_POINTS_BY_CATEGORY } from '@/lib/constants/activities';
+import { Activity, CreateActivityInput, Profile, ActivityCategory, ActivityFrequency } from '@/types';
+import { ACTIVITY_CATEGORIES, DEFAULT_POINTS_BY_CATEGORY, ACTIVITY_FREQUENCIES } from '@/lib/constants/activities';
 import Modal from '@/components/shared/Modal';
 import Input from '@/components/shared/Input';
 import Button from '@/components/shared/Button';
@@ -36,6 +36,8 @@ export default function ActivityForm({ isOpen, onClose, onSuccess, activityToEdi
         points_value: activityToEdit.points_value,
         assigned_to: activityToEdit.assigned_to,
         due_date: activityToEdit.due_date,
+        frequency: activityToEdit.frequency || 'once',
+        max_daily_count: activityToEdit.max_daily_count || 1,
       };
     }
     return {
@@ -45,6 +47,8 @@ export default function ActivityForm({ isOpen, onClose, onSuccess, activityToEdi
       points_value: DEFAULT_POINTS_BY_CATEGORY.homework,
       assigned_to: undefined,
       due_date: undefined,
+      frequency: 'once',
+      max_daily_count: 1,
     };
   }
 
@@ -123,6 +127,8 @@ export default function ActivityForm({ isOpen, onClose, onSuccess, activityToEdi
             points_value: DEFAULT_POINTS_BY_CATEGORY.homework,
             assigned_to: undefined,
             due_date: undefined,
+            frequency: 'once',
+            max_daily_count: 1,
           });
           onSuccess?.();
           onClose();
@@ -144,6 +150,8 @@ export default function ActivityForm({ isOpen, onClose, onSuccess, activityToEdi
       points_value: DEFAULT_POINTS_BY_CATEGORY.homework,
       assigned_to: undefined,
       due_date: undefined,
+      frequency: 'once',
+      max_daily_count: 1,
     });
     onClose();
   }
@@ -273,6 +281,60 @@ export default function ActivityForm({ isOpen, onClose, onSuccess, activityToEdi
             fullWidth
           />
         </div>
+
+        {/* 빈도 설정 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              반복 빈도
+            </label>
+            <select
+              value={formData.frequency || 'once'}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  frequency: e.target.value as ActivityFrequency,
+                  // 일회성이면 max_daily_count를 1로 리셋
+                  max_daily_count: e.target.value === 'once' ? 1 : formData.max_daily_count,
+                })
+              }
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg transition-all duration-200 focus:outline-none focus:border-parent-primary"
+            >
+              {ACTIVITY_FREQUENCIES.map((freq) => (
+                <option key={freq.value} value={freq.value}>
+                  {freq.label} - {freq.description}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 반복 활동일 때만 최대 횟수 표시 */}
+          {formData.frequency !== 'once' && (
+            <Input
+              label="하루 최대 횟수"
+              type="number"
+              value={formData.max_daily_count || 1}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  max_daily_count: Math.max(1, parseInt(e.target.value) || 1),
+                })
+              }
+              min={1}
+              max={10}
+              fullWidth
+            />
+          )}
+        </div>
+
+        {formData.frequency !== 'once' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-700">
+              이 활동은 <strong>{ACTIVITY_FREQUENCIES.find(f => f.value === formData.frequency)?.label}</strong> 반복되며,
+              하루에 최대 <strong>{formData.max_daily_count || 1}회</strong> 수행할 수 있습니다.
+            </p>
+          </div>
+        )}
       </form>
     </Modal>
   );
