@@ -31,8 +31,8 @@ export default function ActivityCard({
   const statusColor = ACTIVITY_STATUS_COLORS[activity.status];
   const statusLabel = ACTIVITY_STATUS_LABELS[activity.status];
 
-  // 반복 활동인지 확인
-  const isRepeating = activity.is_template;
+  // 템플릿이거나 담당자가 없는 공유 활동이면 '반복' 로직을 사용
+  const isRepeating = activity.is_template || activity.assigned_to === null;
   const hasToday = 'today_completion_count' in activity;
   const todayActivity = hasToday ? (activity as ActivityWithTodayStatus) : null;
 

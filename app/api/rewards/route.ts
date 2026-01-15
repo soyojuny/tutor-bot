@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { CreateRewardInput } from '@/types';
-import { RewardRow, ProfileRow } from '@/lib/supabase/types';
+import { RewardRow } from '@/lib/supabase/types';
+import { getSessionFromRequest, requireParent } from '@/lib/auth/session';
 
 // Supabase 타입 체인 호환성을 위한 타입
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('rewards')
-      .select('*')
+      .select('*, created_by:profiles(name)')
       .order('created_at', { ascending: false });
 
     if (isActive !== null) {
@@ -50,12 +51,18 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/rewards
- * 새 보상 생성
+ * 새 보상 생성 - *보안 강화*
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { created_by, ...input } = body as CreateRewardInput & { created_by: string };
+    // --- 세션 검증 추가 ---
+    const session = await getSessionFromRequest(request);
+    if (!requireParent(session)) {
+      return NextResponse.json({ error: '보상은 부모만 생성할 수 있습니다.' }, { status: 403 });
+    }
+    // --- 검증 종료 ---
+
+    const input = (await request.json()) as CreateRewardInput;
 
     // 입력 검증
     if (!input.title || input.points_cost === undefined) {
@@ -65,42 +72,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!created_by) {
-      return NextResponse.json(
-        { error: '생성자 ID가 필요합니다.' },
-        { status: 400 }
-      );
-    }
-
-    // 권한 검증: 생성자는 부모여야 함
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
-    const { data: creator, error: creatorError }: SupabaseQueryResult<ProfileRow> = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', created_by)
-      .single();
 
-    if (creatorError || !creator) {
-      return NextResponse.json(
-        { error: '유효하지 않은 사용자입니다.' },
-        { status: 400 }
-      );
-    }
-
-    if (creator.role !== 'parent') {
-      return NextResponse.json(
-        { error: '보상은 부모만 생성할 수 있습니다.' },
-        { status: 403 }
-      );
-    }
-
-    // 보상 생성
+    // 보상 생성 - 세션 ID 사용
     const { data: reward, error }: SupabaseQueryResult<RewardRow> = await supabase
       .from('rewards')
       .insert({
         ...input,
-        created_by,
+        created_by: session.userId,
         is_active: true,
       })
       .select()

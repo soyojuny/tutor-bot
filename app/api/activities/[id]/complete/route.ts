@@ -68,10 +68,11 @@ export async function POST(
 
     const activity = activityData;
 
-    // 반복 활동(템플릿)인지 확인
-    if (!activity.is_template) {
+    // 템플릿 활동이거나 담당자가 없는 공유 활동인 경우에만 이 API를 사용합니다.
+    // 개별 할당된 일회성 활동은 PATCH /api/activities/[id]를 통해 상태를 직접 변경합니다.
+    if (!activity.is_template && activity.assigned_to !== null) {
       return NextResponse.json(
-        { error: '일회성 활동은 이 API를 사용할 수 없습니다. PATCH /api/activities/[id]를 사용하세요.' },
+        { error: '개별 할당된 일회성 활동은 이 API를 사용할 수 없습니다. PATCH /api/activities/[id]를 사용하세요.' },
         { status: 400 }
       );
     }
