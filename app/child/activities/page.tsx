@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityStore } from '@/store/activityStore';
-import { Activity, ActivityStatus } from '@/types';
+import { Activity, ActivityStatus, ActivityWithTodayStatus } from '@/types';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import ActivityCard from '@/components/child/ActivityCard';
 import Button from '@/components/shared/Button';
@@ -13,47 +13,56 @@ import { RefreshCw, Trophy } from 'lucide-react';
 export default function ChildActivitiesPage() {
   const { user, isChild } = useAuth();
   const {
-    activities,
+    todayActivities,
     isLoading,
     error,
-    fetchActivities,
+    fetchTodayActivities,
     startActivity,
     completeActivity,
+    completeRepeatingActivity,
   } = useActivityStore();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (isChild && user) {
-      fetchActivities();
+      fetchTodayActivities(user.id);
     }
-  }, [isChild, user, fetchActivities]);
+  }, [isChild, user, fetchTodayActivities]);
 
   // 아이에게 할당된 활동만 필터링 (assigned_to가 해당 아이이거나 null)
-  const relevantActivities = activities.filter((activity) => {
-    if (!activity.assigned_to || activity.assigned_to === user?.id) {
-      return true;
-    }
-    return false;
-  });
+  // todayActivities는 이미 assigned_to 필터링이 적용되어 있음
+  const relevantActivities = todayActivities;
 
   // 상태별 필터링
   const filteredActivities = relevantActivities.filter((activity) => {
     if (selectedStatus === 'all') return true;
     if (selectedStatus === 'active') {
-      // 활성 활동: pending 또는 in_progress
+      // 반복 활동: can_complete_today 기준
+      if (activity.is_template) {
+        return activity.can_complete_today;
+      }
+      // 일회성 활동: pending 또는 in_progress
       return activity.status === 'pending' || activity.status === 'in_progress';
+    }
+    // 반복 활동은 status 필터링이 다르게 적용됨
+    if (activity.is_template) {
+      if (selectedStatus === 'pending') return activity.can_complete_today;
+      if (selectedStatus === 'completed') return activity.pending_completions.length > 0;
+      if (selectedStatus === 'verified') return activity.today_completion_count > 0 && activity.pending_completions.length === 0;
+      return true;
     }
     return activity.status === selectedStatus;
   });
 
-  // 활동 시작
+  // 활동 시작 (일회성 활동)
   async function handleStart(activityId: string) {
+    if (!user) return;
     setActionLoading(activityId);
     try {
       await startActivity(activityId);
       // 활동 목록 새로고침
-      await fetchActivities();
+      await fetchTodayActivities(user.id);
     } catch (err) {
       console.error('Error starting activity:', err);
     } finally {
@@ -61,8 +70,9 @@ export default function ChildActivitiesPage() {
     }
   }
 
-  // 활동 완료
+  // 활동 완료 (일회성 활동)
   async function handleComplete(activityId: string) {
+    if (!user) return;
     if (!confirm('정말 완료했어요? 완료하면 부모님이 확인할 거예요!')) {
       return;
     }
@@ -71,7 +81,7 @@ export default function ChildActivitiesPage() {
     try {
       await completeActivity(activityId);
       // 활동 목록 새로고침
-      await fetchActivities();
+      await fetchTodayActivities(user.id);
     } catch (err) {
       console.error('Error completing activity:', err);
     } finally {
@@ -79,17 +89,59 @@ export default function ChildActivitiesPage() {
     }
   }
 
-  // 통계 계산
+  // 반복 활동 완료
+  async function handleCompleteRepeating(activityId: string) {
+    if (!user) return;
+    if (!confirm('이 활동을 완료했나요?')) {
+      return;
+    }
+
+    setActionLoading(activityId);
+    try {
+      await completeRepeatingActivity(activityId);
+      // 활동 목록 새로고침
+      await fetchTodayActivities(user.id);
+    } catch (err) {
+      console.error('Error completing repeating activity:', err);
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  // 통계 계산 (반복 활동과 일회성 활동 모두 고려)
   const stats = {
     total: relevantActivities.length,
-    pending: relevantActivities.filter((a) => a.status === 'pending').length,
-    inProgress: relevantActivities.filter((a) => a.status === 'in_progress').length,
-    completed: relevantActivities.filter((a) => a.status === 'completed').length,
-    verified: relevantActivities.filter((a) => a.status === 'verified').length,
+    pending: relevantActivities.filter((a) => {
+      if (a.is_template) return a.can_complete_today;
+      return a.status === 'pending';
+    }).length,
+    inProgress: relevantActivities.filter((a) => !a.is_template && a.status === 'in_progress').length,
+    completed: relevantActivities.filter((a) => {
+      if (a.is_template) return a.pending_completions.length > 0;
+      return a.status === 'completed';
+    }).length,
+    verified: relevantActivities.filter((a) => {
+      if (a.is_template) return a.today_completion_count > 0;
+      return a.status === 'verified';
+    }).length,
     totalPoints: relevantActivities
-      .filter((a) => a.status === 'verified')
-      .reduce((sum, a) => sum + a.points_value, 0),
+      .filter((a) => a.status === 'verified' || (a.is_template && a.today_completion_count > 0))
+      .reduce((sum, a) => {
+        if (a.is_template) {
+          // 반복 활동: 오늘 검증된 횟수 * 포인트
+          const verifiedCount = a.today_completion_count - a.pending_completions.length;
+          return sum + (verifiedCount > 0 ? verifiedCount * a.points_value : 0);
+        }
+        return sum + a.points_value;
+      }, 0),
   };
+
+  // 새로고침 핸들러
+  function handleRefresh() {
+    if (user) {
+      fetchTodayActivities(user.id);
+    }
+  }
 
   return (
     <ProtectedRoute allowedRoles={['child']}>
@@ -103,7 +155,7 @@ export default function ChildActivitiesPage() {
             </p>
           </div>
           <Button
-            onClick={() => fetchActivities()}
+            onClick={handleRefresh}
             variant="ghost"
             icon={<RefreshCw className="w-5 h-5" />}
             disabled={isLoading}
@@ -195,6 +247,7 @@ export default function ChildActivitiesPage() {
                 activity={activity}
                 onStart={() => handleStart(activity.id)}
                 onComplete={() => handleComplete(activity.id)}
+                onCompleteRepeating={() => handleCompleteRepeating(activity.id)}
                 isLoading={actionLoading === activity.id}
               />
             ))}

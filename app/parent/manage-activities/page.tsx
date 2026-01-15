@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityStore } from '@/store/activityStore';
-import { Activity, ActivityCategory } from '@/types';
+import { Activity, ActivityCategory, ActivityCompletion } from '@/types';
 import { ACTIVITY_CATEGORIES, ACTIVITY_STATUS_LABELS, ACTIVITY_STATUS_COLORS } from '@/lib/constants/activities';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import ActivityForm from '@/components/parent/ActivityForm';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
-import { Plus, Edit, Trash2, Calendar, User, Trophy, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, User, Trophy, CheckCircle2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ManageActivitiesPage() {
@@ -19,23 +19,60 @@ export default function ManageActivitiesPage() {
   const router = useRouter();
   const {
     activities,
+    pendingCompletions,
     isLoading,
     error,
     fetchActivities,
+    fetchPendingCompletions,
     deleteActivity,
     verifyActivity,
+    verifyCompletion,
   } = useActivityStore();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [activityToEdit, setActivityToEdit] = useState<Activity | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [childProfiles, setChildProfiles] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (isParent && user) {
       fetchActivities();
+      fetchPendingCompletions();
+      fetchChildProfiles();
     }
-  }, [isParent, user, fetchActivities]);
+  }, [isParent, user, fetchActivities, fetchPendingCompletions]);
+
+  // 아이 프로필 목록 가져오기
+  async function fetchChildProfiles() {
+    try {
+      const response = await fetch('/api/profiles?role=child');
+      const data = await response.json();
+      if (response.ok) {
+        setChildProfiles(data.profiles || []);
+      }
+    } catch (err) {
+      console.error('Error fetching child profiles:', err);
+    }
+  }
+
+  // 아이 이름 가져오기
+  function getChildName(profileId: string) {
+    const child = childProfiles.find((c) => c.id === profileId);
+    return child?.name || '알 수 없음';
+  }
+
+  // 활동 제목 가져오기
+  function getActivityTitle(activityId: string) {
+    const activity = activities.find((a) => a.id === activityId);
+    return activity?.title || '알 수 없는 활동';
+  }
+
+  // 활동 포인트 가져오기
+  function getActivityPoints(activityId: string) {
+    const activity = activities.find((a) => a.id === activityId);
+    return activity?.points_value || 0;
+  }
 
   // 필터링된 활동 목록
   const filteredActivities = activities.filter((activity) => {
@@ -60,7 +97,7 @@ export default function ManageActivitiesPage() {
     }
   }
 
-  // 활동 검증
+  // 활동 검증 (개별 할당 일회성 활동)
   async function handleVerify(activityId: string) {
     if (!user) return;
     if (!confirm('이 활동을 검증하고 포인트를 지급하시겠습니까?')) return;
@@ -78,6 +115,30 @@ export default function ManageActivitiesPage() {
     } catch (err) {
       console.error('Error verifying activity:', err);
       toast.error('활동 검증 중 오류가 발생했습니다.');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  // 완료 기록 검증 (반복/전체 대상 활동)
+  async function handleVerifyCompletion(completionId: string) {
+    if (!user) return;
+    if (!confirm('이 완료 기록을 검증하고 포인트를 지급하시겠습니까?')) return;
+
+    setActionLoading(completionId);
+    try {
+      const verifiedCompletion = await verifyCompletion(completionId);
+      if (verifiedCompletion) {
+        const points = verifiedCompletion.points_awarded || 0;
+        toast.success(`${points}포인트가 지급되었습니다! 🎉`);
+        // 목록 새로고침
+        await fetchPendingCompletions();
+      } else {
+        toast.error('완료 기록 검증에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('Error verifying completion:', err);
+      toast.error('완료 기록 검증 중 오류가 발생했습니다.');
     } finally {
       setActionLoading(null);
     }
@@ -173,6 +234,44 @@ export default function ManageActivitiesPage() {
           </Card>
         )}
 
+        {/* 검증 대기 완료 기록 (반복/전체 대상 활동) */}
+        {pendingCompletions.length > 0 && (
+          <Card padding="md" className="bg-yellow-50 border-yellow-200">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-5 h-5 text-yellow-600" />
+              <h2 className="text-lg font-semibold text-yellow-800">
+                검증 대기 ({pendingCompletions.length}건)
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {pendingCompletions.map((completion) => (
+                <div
+                  key={completion.id}
+                  className="flex items-center justify-between bg-white p-3 rounded-lg border"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {getActivityTitle(completion.activity_id)}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {getChildName(completion.profile_id)} · {completion.completed_date} · {getActivityPoints(completion.activity_id)}포인트
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleVerifyCompletion(completion.id)}
+                    disabled={actionLoading === completion.id}
+                    loading={actionLoading === completion.id}
+                    icon={<CheckCircle2 className="w-4 h-4" />}
+                  >
+                    검증
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {/* 로딩 상태 */}
         {isLoading && (
           <div className="text-center py-12">
@@ -253,7 +352,8 @@ export default function ManageActivitiesPage() {
 
                     {/* 액션 버튼 */}
                     <div className="flex gap-2 pt-2 border-t">
-                      {activity.status === 'completed' && (
+                      {/* 개별 할당 일회성 활동만 직접 검증 가능 (전체 대상/반복은 위 검증 대기에서) */}
+                      {activity.status === 'completed' && activity.assigned_to && !activity.is_template && (
                         <Button
                           variant="primary"
                           size="sm"

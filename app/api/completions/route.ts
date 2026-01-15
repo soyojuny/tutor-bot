@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         activity:activities(id, title, category, points_value, frequency),
-        profile:profiles(id, name)
+        profile:profiles!activity_completions_profile_id_fkey(id, name)
       `)
       .order('created_at', { ascending: false });
 

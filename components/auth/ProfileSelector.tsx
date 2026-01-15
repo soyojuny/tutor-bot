@@ -113,7 +113,7 @@ export default function ProfileSelector() {
                 >
                   <div className="flex items-center space-x-3">
                     <div className="text-3xl">
-                      {profile.role === 'parent' ? '👨‍👩' : profile.age === 10 ? '🧒' : '👧'}
+                      {profile.role === 'parent' ? '👨' : '👦'}
                     </div>
                     <div className="text-left">
                       <div className="font-semibold text-gray-800">
@@ -139,7 +139,7 @@ export default function ProfileSelector() {
 
             <div className="text-center mb-6">
               <div className="text-5xl mb-2">
-                {selectedProfile.role === 'parent' ? '👨‍👩' : selectedProfile.age === 10 ? '🧒' : '👧'}
+                {selectedProfile.role === 'parent' ? '👨' : '👦'}
               </div>
               <h2 className="text-2xl font-bold text-gray-800">
                 {selectedProfile.name}
@@ -177,10 +177,6 @@ export default function ProfileSelector() {
               </button>
             </form>
 
-            <div className="mt-4 p-3 bg-gray-50 rounded text-xs text-gray-500">
-              <p className="font-semibold mb-1">테스트용 PIN:</p>
-              <p>부모: 1234 | 큰아이: 0000 | 작은아이: 1111</p>
-            </div>
           </div>
         )}
       </div>

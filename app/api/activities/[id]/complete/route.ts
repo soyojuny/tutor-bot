@@ -76,8 +76,8 @@ export async function POST(
       );
     }
 
-    // 할당된 아이인지 확인
-    if (activity.assigned_to !== session.userId) {
+    // 할당된 아이인지 확인 (assigned_to가 null이면 전체 대상 → 모든 자녀 허용)
+    if (activity.assigned_to !== null && activity.assigned_to !== session.userId) {
       return NextResponse.json(
         { error: '이 활동에 할당되지 않았습니다.' },
         { status: 403 }
@@ -92,7 +92,7 @@ export async function POST(
       );
     }
 
-    // 오늘 완료 횟수 확인
+    // 오늘 완료 횟수 확인 (모든 상태 카운트 - 하루 최대 횟수 제한)
     const today = new Date().toISOString().split('T')[0];
     const { data: todayCompletions, error: countError }: SupabaseQueryResult<CompletionRow[]> = await supabase
       .from('activity_completions')

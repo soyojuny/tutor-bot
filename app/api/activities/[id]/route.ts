@@ -45,14 +45,25 @@ export async function PATCH(
 
     const existingActivity = existingActivityData as ActivityRow;
 
-    // 권한 검증: 아이는 자신에게 할당된 활동만 상태 변경 가능
+    // 권한 검증: 아이는 자신에게 할당된 활동 또는 전체 대상 활동만 상태 변경 가능
     if (session.role === 'child') {
-      if (existingActivity.assigned_to !== session.userId) {
+      // assigned_to가 null이면 전체 대상 → 모든 자녀 허용
+      // assigned_to가 있으면 해당 자녀만 허용
+      if (existingActivity.assigned_to !== null && existingActivity.assigned_to !== session.userId) {
         return NextResponse.json(
           { error: '이 활동을 수정할 권한이 없습니다.' },
           { status: 403 }
         );
       }
+
+      // 반복 활동은 이 API로 상태 변경 불가 (complete API 사용)
+      if (existingActivity.is_template) {
+        return NextResponse.json(
+          { error: '반복 활동은 /api/activities/[id]/complete API를 사용하세요.' },
+          { status: 400 }
+        );
+      }
+
       // 아이는 상태만 변경 가능 (시작/완료)
       const allowedStatuses = ['in_progress', 'completed'];
       if (input.status && !allowedStatuses.includes(input.status)) {
@@ -61,6 +72,55 @@ export async function PATCH(
           { status: 403 }
         );
       }
+    }
+
+    // 전체 대상 일회성 활동의 완료 처리: activity_completions에 기록
+    const isGlobalActivity = existingActivity.assigned_to === null && !existingActivity.is_template;
+    if (session.role === 'child' && isGlobalActivity && input.status === 'completed') {
+      const today = new Date().toISOString().split('T')[0];
+
+      // 이미 오늘 완료 기록이 있는지 확인
+      const { data: existingCompletion } = await supabase
+        .from('activity_completions')
+        .select('id')
+        .eq('activity_id', id)
+        .eq('profile_id', session.userId)
+        .eq('completed_date', today)
+        .single();
+
+      if (existingCompletion) {
+        return NextResponse.json(
+          { error: '오늘 이미 이 활동을 완료했습니다.' },
+          { status: 400 }
+        );
+      }
+
+      // activity_completions에 완료 기록 생성
+      const { data: completion, error: completionError } = await supabase
+        .from('activity_completions')
+        .insert({
+          activity_id: id,
+          profile_id: session.userId,
+          completed_date: today,
+          status: 'completed',
+        })
+        .select()
+        .single();
+
+      if (completionError) {
+        console.error('Error creating completion:', completionError);
+        return NextResponse.json(
+          { error: '완료 기록 생성에 실패했습니다.' },
+          { status: 500 }
+        );
+      }
+
+      // 전체 대상 활동은 activities.status를 변경하지 않음 (다른 아이도 해야 하므로)
+      return NextResponse.json({
+        activity: existingActivity,
+        completion,
+        message: '활동 완료가 기록되었습니다. 부모님의 확인을 기다려주세요.',
+      });
     }
 
     // 업데이트할 필드 준비
@@ -77,7 +137,7 @@ export async function PATCH(
       if (input.due_date !== undefined) updates.due_date = input.due_date;
     }
 
-    // 상태 업데이트 (부모/아이 모두)
+    // 상태 업데이트 (개별 할당 일회성 활동만)
     if (input.status !== undefined) updates.status = input.status;
 
     // 상태 전환 시 타임스탬프 업데이트

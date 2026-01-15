@@ -94,7 +94,11 @@ export async function getSessionFromRequest(request: Request): Promise<SessionPa
   }
 
   const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
-    const [key, value] = cookie.trim().split('=');
+    const trimmed = cookie.trim();
+    const equalsIndex = trimmed.indexOf('=');
+    if (equalsIndex === -1) return acc;
+    const key = trimmed.substring(0, equalsIndex);
+    const value = trimmed.substring(equalsIndex + 1);
     acc[key] = value;
     return acc;
   }, {} as Record<string, string>);

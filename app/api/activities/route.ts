@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
         );
         const todayCount = activityCompletions.length;
         const isAvailable = isAvailableToday(activity.frequency);
+        // can_complete: 오늘 완료 횟수가 최대 횟수 미만인지 확인
         const canComplete = activity.is_template
           ? isAvailable && todayCount < activity.max_daily_count
           : activity.status === 'pending' || activity.status === 'in_progress';
