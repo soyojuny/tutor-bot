@@ -135,6 +135,19 @@ export async function PATCH(
       if (input.category !== undefined) updates.category = input.category;
       if (input.points_value !== undefined) updates.points_value = input.points_value;
       if (input.due_date !== undefined) updates.due_date = input.due_date;
+      if (input.frequency !== undefined) updates.frequency = input.frequency;
+      if (input.max_daily_count !== undefined) updates.max_daily_count = input.max_daily_count;
+
+      // assigned_to 변경: pending 상태일 때만 가능
+      if (input.assigned_to !== undefined) {
+        if (existingActivity.status !== 'pending') {
+          return NextResponse.json(
+            { error: '진행 중이거나 완료된 활동은 배정을 변경할 수 없습니다.' },
+            { status: 400 }
+          );
+        }
+        updates.assigned_to = input.assigned_to || null;
+      }
     }
 
     // 상태 업데이트 (개별 할당 일회성 활동만)

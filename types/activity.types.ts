@@ -80,6 +80,7 @@ export interface UpdateActivityInput {
   description?: string;
   category?: ActivityCategory;
   points_value?: number;
+  assigned_to?: string;
   status?: ActivityStatus;
   due_date?: string;
   // 빈도 관련 필드
