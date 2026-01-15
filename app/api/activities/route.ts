@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (assignedTo) {
-      query = query.eq('assigned_to', assignedTo);
+      // 특정 프로필에 할당된 활동 OR 전체 대상 활동(assigned_to가 null)
+      query = query.or(`assigned_to.eq.${assignedTo},assigned_to.is.null`);
     }
     if (status) {
       query = query.eq('status', status);
