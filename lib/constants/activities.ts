@@ -1,4 +1,5 @@
 import { ActivityCategory, ActivityFrequency } from '@/types';
+import { getKSTDay } from '@/lib/utils/dates';
 
 export const ACTIVITY_CATEGORIES: {
   value: ActivityCategory;
@@ -92,13 +93,13 @@ export const ACTIVITY_FREQUENCY_LABELS: Record<ActivityFrequency, string> = {
 // 주중(weekdays) 요일 정의 (월~금, 0=일요일)
 export const WEEKDAYS = [1, 2, 3, 4, 5]; // Monday to Friday
 
-// 오늘이 해당 빈도에 맞는 날인지 확인
+// 오늘이 해당 빈도에 맞는 날인지 확인 (KST 기준)
 export function isAvailableToday(frequency: ActivityFrequency): boolean {
   if (frequency === 'once') return true; // 일회성은 항상 가능 (상태로 제어)
   if (frequency === 'daily') return true;
   if (frequency === 'weekdays') {
-    const today = new Date().getDay();
-    return WEEKDAYS.includes(today);
+    const todayKST = getKSTDay(); // KST 기준 요일
+    return WEEKDAYS.includes(todayKST);
   }
   return false;
 }

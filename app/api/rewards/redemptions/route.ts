@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
     }
     // 부모는 모든 기록을 볼 수 있지만, 아이는 자기 것만 볼 수 있음
-    if (session.userRole === 'child' && profileId !== session.userId) {
+    if (session.role === 'child' && profileId !== session.userId) {
       return NextResponse.json({ error: '자신의 교환 내역만 조회할 수 있습니다.' }, { status: 403 });
     }
     // --- 검증 종료 ---
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
-    if (session.userRole !== 'child') {
+    if (session.role !== 'child') {
       return NextResponse.json({ error: '보상 교환은 아이만 할 수 있습니다.' }, { status: 403 });
     }
     // --- 검증 종료 ---

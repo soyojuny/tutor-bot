@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getSessionFromRequest, requireAuth, requireParent } from '@/lib/auth/session';
 import { UpdateActivityInput } from '@/types';
 import { ActivityRow, ActivityUpdate } from '@/lib/supabase/types';
+import { getKSTDateString } from '@/lib/utils/dates';
 
 /**
  * PATCH /api/activities/[id]
@@ -77,7 +78,7 @@ export async function PATCH(
     // 전체 대상 일회성 활동의 완료 처리: activity_completions에 기록
     const isGlobalActivity = existingActivity.assigned_to === null && !existingActivity.is_template;
     if (session.role === 'child' && isGlobalActivity && input.status === 'completed') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getKSTDateString(); // KST 기준
 
       // 이미 오늘 완료 기록이 있는지 확인
       const { data: existingCompletion } = await supabase

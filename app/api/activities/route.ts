@@ -4,6 +4,7 @@ import { getSessionFromRequest, requireAuth, requireParent } from '@/lib/auth/se
 import { CreateActivityInput, Activity, ActivityWithTodayStatus, ActivityCompletion } from '@/types';
 import { ActivityRow, ProfileRow } from '@/lib/supabase/types';
 import { isAvailableToday } from '@/lib/constants/activities';
+import { getKSTDateString } from '@/lib/utils/dates';
 
 /**
  * GET /api/activities
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
     const includeTodayStatus = searchParams.get('include_today_status') === 'true';
 
     if (includeTodayStatus && activities && activities.length > 0) {
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const today = getKSTDateString(); // KST 기준 YYYY-MM-DD
       const activityIds = activities.map((a: ActivityRow) => a.id);
 
       // 오늘의 완료 기록 조회

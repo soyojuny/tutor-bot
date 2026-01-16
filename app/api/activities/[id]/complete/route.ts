@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getSessionFromRequest, requireAuth } from '@/lib/auth/session';
 import { ActivityCompletionMetadata } from '@/types';
 import { isAvailableToday } from '@/lib/constants/activities';
+import { getKSTDateString } from '@/lib/utils/dates';
 
 // Supabase 타입 체인 호환성을 위한 타입
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,7 +95,7 @@ export async function POST(
     }
 
     // 오늘 완료 횟수 확인 (모든 상태 카운트 - 하루 최대 횟수 제한)
-    const today = new Date().toISOString().split('T')[0];
+    const today = getKSTDateString(); // KST 기준
     const { data: todayCompletions, error: countError }: SupabaseQueryResult<CompletionRow[]> = await supabase
       .from('activity_completions')
       .select('id')
