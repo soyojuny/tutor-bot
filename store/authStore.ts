@@ -6,6 +6,7 @@ interface AuthState {
   currentUser: Profile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isSessionChecked: boolean;
   login: (profileId: string, pin: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
@@ -18,6 +19,7 @@ export const useAuthStore = create<AuthState>()(
       currentUser: null,
       isAuthenticated: false,
       isLoading: false,
+      isSessionChecked: false,
 
       login: async (profileId: string, pin: string) => {
         try {
@@ -86,6 +88,7 @@ export const useAuthStore = create<AuthState>()(
                 currentUser: data.user,
                 isAuthenticated: true,
                 isLoading: false,
+                isSessionChecked: true,
               });
               return;
             }
@@ -96,6 +99,7 @@ export const useAuthStore = create<AuthState>()(
             currentUser: null,
             isAuthenticated: false,
             isLoading: false,
+            isSessionChecked: true,
           });
         } catch (error) {
           console.error('Session check error:', error);
@@ -103,6 +107,7 @@ export const useAuthStore = create<AuthState>()(
             currentUser: null,
             isAuthenticated: false,
             isLoading: false,
+            isSessionChecked: true,
           });
         }
       },

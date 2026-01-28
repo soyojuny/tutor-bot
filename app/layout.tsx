@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from 'react-hot-toast';
+import SessionProvider from '@/components/auth/SessionProvider';
 import './globals.css';
 
 export const viewport: Viewport = {
@@ -32,7 +33,9 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
         <Toaster
           position="top-center"
           reverseOrder={false}
