@@ -43,12 +43,21 @@ npm run lint
     1.  **세션 검증**: 요청에 포함된 JWT 쿠키를 통해 사용자가 인증되었는지 확인합니다.
     2.  **인가 (Authorization)**: 인증된 사용자가 해당 리소스에 접근할 권한이 있는지 확인합니다. (예: 부모는 자신의 자녀 데이터에만 접근 가능)
 
-### 3. 상태 관리 (Zustand)
+### 3. AI 서비스 연동 (Gemini Live API)
+
+- **API 키 보호**: `GOOGLE_GENERATIVE_AI_API_KEY`는 서버에서만 사용합니다. 절대 클라이언트에 노출하지 않습니다.
+- **Ephemeral Token 패턴**: 클라이언트가 Gemini Live API에 직접 WebSocket 연결할 때, 서버에서 발급한 **Ephemeral Token**을 사용합니다. 이를 통해 API 키 없이 안전하게 연결합니다.
+- **시스템 프롬프트 잠금**: Ephemeral Token 생성 시 `liveConnectConstraints`에 시스템 프롬프트, 모델, 설정을 포함하여 잠급니다. 클라이언트에서 이를 변조할 수 없습니다.
+- **지연 초기화**: `GoogleGenAI` 클라이언트는 모듈 로드 시점이 아닌 **첫 호출 시점에 초기화**합니다. 빌드 시 환경변수가 없어 발생하는 오류를 방지합니다.
+- **클라이언트 모듈**: `lib/gemini/client.ts`에서 Gemini 관련 서버 로직을 관리합니다.
+- **토큰 발급 API**: `POST /api/book-discussion/token` — 인증된 사용자에게 1회용 Ephemeral Token을 발급합니다.
+
+### 4. 상태 관리 (Zustand)
 
 - 스토어는 도메인(`auth`, `activity`, `reward` 등)을 기준으로 분리하여 관리합니다.
 - `authStore`는 `persist` 미들웨어를 사용해 인증 상태를 유지하고, 나머지 스토어는 필요 시 API를 통해 최신 데이터를 가져옵니다.
 
-### 4. 타입 시스템
+### 5. 타입 시스템
 
 - `types/database.types.ts`: Supabase 스키마에서 자동 생성된 타입입니다.
 - `types/*.types.ts`: 애플리케이션에서 사용하는 더 엄격한 커스텀 타입입니다.

@@ -15,3 +15,6 @@ export * from './reward.types';
 
 // Streak types
 export * from './streak.types';
+
+// Book Discussion types
+export * from './book-discussion.types';

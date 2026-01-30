@@ -10,7 +10,7 @@ import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
 import PointsDisplay from '@/components/shared/PointsDisplay';
 import StreakDisplay from '@/components/child/StreakDisplay';
-import { ClipboardList, Gift, Trophy, CheckCircle2, Clock } from 'lucide-react';
+import { ClipboardList, Gift, Trophy, CheckCircle2, Clock, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ChildDashboard() {
@@ -142,6 +142,22 @@ export default function ChildDashboard() {
               <div>
                 <h3 className="font-semibold text-gray-900 text-xl">보상 교환</h3>
                 <p className="text-sm text-gray-600">포인트로 보상 받기</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card
+            hoverable
+            onClick={() => router.push('/child/book-discussion')}
+            className="cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <BookOpen className="w-8 h-8 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-xl">독서 토론</h3>
+                <p className="text-sm text-gray-600">AI 선생님과 책 이야기하기</p>
               </div>
             </div>
           </Card>
