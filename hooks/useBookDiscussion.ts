@@ -30,6 +30,8 @@ export function useBookDiscussion() {
   const playbackContextRef = useRef<AudioContext | null>(null);
   const playbackQueueRef = useRef<AudioBuffer[]>([]);
   const isPlayingRef = useRef(false);
+  const nextPlayTimeRef = useRef(0);
+  const activeSourceCountRef = useRef(0);
   const cleanedUpRef = useRef(false);
   const statusRef = useRef<ConnectionStatus>('idle');
 
@@ -43,21 +45,37 @@ export function useBookDiscussion() {
 
   const playNext = useCallback(() => {
     const ctx = playbackContextRef.current;
-    if (!ctx || ctx.state === 'closed' || playbackQueueRef.current.length === 0) {
+    if (!ctx || ctx.state === 'closed') {
       isPlayingRef.current = false;
       setIsAiSpeaking(false);
       return;
     }
 
+    if (playbackQueueRef.current.length === 0) return;
+
+    // Schedule all queued buffers with precise timing to eliminate gaps
+    while (playbackQueueRef.current.length > 0) {
+      const buffer = playbackQueueRef.current.shift()!;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+
+      const startTime = Math.max(ctx.currentTime, nextPlayTimeRef.current);
+      source.start(startTime);
+      nextPlayTimeRef.current = startTime + buffer.duration;
+      activeSourceCountRef.current++;
+
+      source.onended = () => {
+        activeSourceCountRef.current--;
+        if (activeSourceCountRef.current === 0 && playbackQueueRef.current.length === 0) {
+          isPlayingRef.current = false;
+          setIsAiSpeaking(false);
+        }
+      };
+    }
+
     isPlayingRef.current = true;
     setIsAiSpeaking(true);
-
-    const buffer = playbackQueueRef.current.shift()!;
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.onended = () => playNext();
-    source.start();
   }, []);
 
   const enqueueAudio = useCallback(
@@ -82,9 +100,7 @@ export function useBookDiscussion() {
       audioBuffer.getChannelData(0).set(float32);
 
       playbackQueueRef.current.push(audioBuffer);
-      if (!isPlayingRef.current) {
-        playNext();
-      }
+      playNext();
     },
     [playNext]
   );
@@ -112,6 +128,8 @@ export function useBookDiscussion() {
 
     playbackQueueRef.current = [];
     isPlayingRef.current = false;
+    nextPlayTimeRef.current = 0;
+    activeSourceCountRef.current = 0;
 
     if (
       playbackContextRef.current &&
@@ -193,6 +211,8 @@ export function useBookDiscussion() {
                 if (message.serverContent?.interrupted) {
                   playbackQueueRef.current = [];
                   isPlayingRef.current = false;
+                  nextPlayTimeRef.current = 0;
+                  activeSourceCountRef.current = 0;
                   setIsAiSpeaking(false);
                 }
 
