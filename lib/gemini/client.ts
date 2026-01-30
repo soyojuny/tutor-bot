@@ -14,22 +14,49 @@ function getClient(): GoogleGenAI {
   return _ai;
 }
 
-function buildSystemPrompt(bookTitle: string): string {
-  return `너는 아이와 독서토론을 하는 친절한 AI 선생님이야.
-아이가 읽은 책은 "${bookTitle}"이야. 너는 이 책 제목을 이미 알고 있어.
+function buildSystemPrompt(
+  bookTitle: string,
+  bookSummary?: string,
+  childAge: number = 7
+): string {
+  const persona =
+    childAge <= 7
+      ? '너는 아이와 독서토론을 하는 장난기 많고 재미있는 친구야. 아이가 편하게 느끼도록 밝고 유쾌한 톤으로 대화해.'
+      : '너는 아이와 독서토론을 하는 다정한 토론 멘토야. 아이의 생각을 존중하며 더 깊이 생각할 수 있도록 이끌어줘.';
 
-## 규칙
-- "${bookTitle}"에 대해 이야기를 나눠.
-- 아이의 눈높이에 맞춰 쉽고 따뜻한 말투로 대화해.
-- 한국어로만 대화해.
-- 열린 질문을 통해 아이가 스스로 생각하고 표현할 수 있도록 이끌어줘.
-- 아이의 대답을 경청하고, 공감하면서 더 깊은 생각을 유도해.
+  const trimmedSummary = bookSummary
+    ? bookSummary.slice(0, 500)
+    : null;
+
+  const summarySection = trimmedSummary
+    ? `\n## 이 책의 줄거리\n${trimmedSummary}\n- 위 줄거리를 참고하되, 아이에게 줄거리를 읽어주지 마. 아이가 직접 이야기하도록 유도해.`
+    : `\n## 줄거리 정보 없음\n- 이 책의 줄거리 정보가 없어. 아는 척하지 말고 아이에게 "우와, 그 책은 무슨 내용이야? 선생님한테도 알려줘!"라고 물어봐서 내용을 파악해.`;
+
+  return `${persona}
+아이가 읽은 책은 "${bookTitle}"이야. 너는 이 책 제목을 이미 알고 있어.
+${summarySection}
+
+## 핵심 규칙 (반드시 지킬 것)
+1. **길이 제약:** 답변은 무조건 **공백 포함 150자 이내(1~2문장)**로 짧게 해. 아이가 듣기에 지루하지 않아야 해.
+2. **질문 원칙:** 한 번에 **질문은 딱 한 가지**만 해. 여러 개를 동시에 묻지 마.
+3. **대화 패턴:** [공감/리액션] -> [짧은 내 생각] -> [질문] 순서로 말해. 질문만 계속 던지지 마.
+4. **언어:** 아이 눈높이에 맞는 쉬운 한국어를 사용해. (${childAge}살 아이 수준)
+5. **금지 사항:** - "${bookTitle}"이 무슨 책이냐고 제목을 다시 묻지 마.
+   - 너무 교훈적인 척하거나 가르치려 들지 마.
+
+## 대화 가이드
+- 아이의 엉뚱한 대답도 "정말? 기발한 생각이다!"라고 칭찬해 줘.
+- "네 생각은 어때?", "만약 너라면 어떻게 했을까?" 같은 열린 질문을 사용해.
 - 책의 내용, 등장인물, 주제, 아이의 느낌과 생각에 대해 다양한 각도로 대화해.
 - 첫 인사는 한두 문장으로 짧게 해. 예: "안녕! ${bookTitle} 읽었구나, 어떤 내용이었어?"
 - 절대 책 제목을 다시 물어보지 마. 이미 알고 있으니까 바로 토론을 시작해.`;
 }
 
-export async function createLiveSessionToken(bookTitle: string) {
+export async function createLiveSessionToken(
+  bookTitle: string,
+  bookSummary?: string,
+  childAge?: number
+) {
   const ai = getClient();
   const token = await ai.authTokens.create({
     config: {
@@ -38,13 +65,13 @@ export async function createLiveSessionToken(bookTitle: string) {
         model: GEMINI_MODEL,
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: buildSystemPrompt(bookTitle),
+          systemInstruction: buildSystemPrompt(bookTitle, bookSummary, childAge),
           inputAudioTranscription: {},
           outputAudioTranscription: {},
           realtimeInputConfig: {
             automaticActivityDetection: {
               endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-              silenceDurationMs: 2000,
+              silenceDurationMs: 1000,
             },
           },
         },

@@ -156,7 +156,7 @@ export function useBookDiscussion() {
   // --- Start Session ---
 
   const startSession = useCallback(
-    async (bookTitle: string) => {
+    async (bookTitle: string, bookSummary?: string, childAge?: number) => {
       try {
         cleanedUpRef.current = false;
         updateStatus('connecting');
@@ -171,7 +171,7 @@ export function useBookDiscussion() {
         const tokenRes = await fetch('/api/book-discussion/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bookTitle }),
+          body: JSON.stringify({ bookTitle, bookSummary, childAge }),
         });
         if (!tokenRes.ok) {
           const data = await tokenRes.json().catch(() => ({}));

@@ -25,7 +25,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await createLiveSessionToken(body.bookTitle.trim());
+    const result = await createLiveSessionToken(
+      body.bookTitle.trim(),
+      body.bookSummary,
+      body.childAge
+    );
 
     return NextResponse.json(result);
   } catch (error) {
