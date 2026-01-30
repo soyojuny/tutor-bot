@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useBookDiscussion } from '@/hooks/useBookDiscussion';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useAuth } from '@/hooks/useAuth';
 import Card from '@/components/shared/Card';
 import Button from '@/components/shared/Button';
@@ -15,9 +16,10 @@ import {
   Volume2,
   Search,
   RotateCcw,
+  Camera,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { BookSearchResult } from '@/types';
+import { BookSearchResult, BookCoverInfo } from '@/types';
 
 type PageState = 'idle' | 'searching' | 'selecting' | 'connecting' | 'connected' | 'error';
 
@@ -28,6 +30,8 @@ export default function BookDiscussionPage() {
   const [pageState, setPageState] = useState<PageState>('idle');
   const [searchResults, setSearchResults] = useState<BookSearchResult[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [isRecognizingCover, setIsRecognizingCover] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     status,
     error,
@@ -37,6 +41,21 @@ export default function BookDiscussionPage() {
     stopSession,
     resetError,
   } = useBookDiscussion();
+  const {
+    isListening,
+    transcript,
+    isSupported: isSpeechSupported,
+    error: speechError,
+    startListening,
+    stopListening,
+  } = useSpeechRecognition();
+
+  // Sync speech recognition transcript to bookTitle
+  useEffect(() => {
+    if (transcript) {
+      setBookTitle(transcript);
+    }
+  }, [transcript]);
 
   // Sync hook status to page state for connecting/connected/error
   const effectiveState: PageState =
@@ -74,6 +93,77 @@ export default function BookDiscussionPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
       handleSearch();
+    }
+  };
+
+  const handleSearchStructured = async (info: BookCoverInfo) => {
+    setPageState('searching');
+    setSearchError(null);
+
+    try {
+      const params = new URLSearchParams();
+      if (info.title) params.set('title', info.title);
+      if (info.author) params.set('author', info.author);
+      if (info.publisher) params.set('publisher', info.publisher);
+
+      const res = await fetch(
+        `/api/book-discussion/search?${params.toString()}`
+      );
+      if (!res.ok) {
+        throw new Error('검색에 실패했습니다.');
+      }
+      const data = await res.json();
+      setSearchResults(data.results ?? []);
+      setPageState('selecting');
+    } catch {
+      setSearchError('책 검색에 실패했습니다. 다시 시도해주세요.');
+      setPageState('idle');
+    }
+  };
+
+  const handleCoverCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset file input for re-selection
+    e.target.value = '';
+
+    setIsRecognizingCover(true);
+    setSearchError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await fetch('/api/book-discussion/recognize-cover', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '표지 인식에 실패했습니다.');
+      }
+
+      const info: BookCoverInfo = await res.json();
+
+      if (!info.title && !info.author && !info.publisher) {
+        setSearchError('책 정보를 인식하지 못했어요. 다시 시도해주세요.');
+        setIsRecognizingCover(false);
+        return;
+      }
+
+      if (info.title) {
+        setBookTitle(info.title);
+      }
+
+      setIsRecognizingCover(false);
+      await handleSearchStructured(info);
+    } catch (err) {
+      setSearchError(
+        err instanceof Error ? err.message : '표지 인식에 실패했습니다.'
+      );
+      setIsRecognizingCover(false);
     }
   };
 
@@ -133,12 +223,65 @@ export default function BookDiscussionPage() {
                 inputSize="lg"
                 fullWidth
               />
-              {searchError && (
-                <p className="text-sm text-red-600">{searchError}</p>
+
+              <div className="flex gap-2">
+                {isSpeechSupported && (
+                  <button
+                    onClick={isListening ? stopListening : startListening}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all text-sm font-medium ${
+                      isListening
+                        ? 'border-red-400 bg-red-50 text-red-600'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-green-400 hover:bg-green-50'
+                    }`}
+                  >
+                    {isListening ? (
+                      <>
+                        <Mic className="w-5 h-5 animate-pulse" />
+                        듣고 있어요...
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-5 h-5" />
+                        말로 하기
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isRecognizingCover}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-600 hover:border-green-400 hover:bg-green-50 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isRecognizingCover ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      인식 중...
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-5 h-5" />
+                      사진으로 찍기
+                    </>
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleCoverCapture}
+                  className="hidden"
+                />
+              </div>
+
+              {(searchError || speechError) && (
+                <p className="text-sm text-red-600">
+                  {searchError || speechError}
+                </p>
               )}
               <Button
                 onClick={handleSearch}
-                disabled={!bookTitle.trim()}
+                disabled={!bookTitle.trim() || isRecognizingCover}
                 size="lg"
                 fullWidth
                 icon={<Search className="w-5 h-5" />}

@@ -17,14 +17,28 @@ export async function GET(request: NextRequest) {
     }
 
     const q = request.nextUrl.searchParams.get('q');
-    if (!q || !q.trim()) {
+    const title = request.nextUrl.searchParams.get('title');
+    const author = request.nextUrl.searchParams.get('author');
+    const publisher = request.nextUrl.searchParams.get('publisher');
+
+    let query: string;
+
+    if (title || author || publisher) {
+      const parts: string[] = [];
+      if (title) parts.push(`intitle:${title}`);
+      if (author) parts.push(`inauthor:${author}`);
+      if (publisher) parts.push(`inpublisher:${publisher}`);
+      query = parts.join('+');
+    } else if (q && q.trim()) {
+      query = q.trim();
+    } else {
       return NextResponse.json(
         { error: '검색어가 필요합니다.' },
         { status: 400 }
       );
     }
 
-    const results = await searchBooks(q.trim());
+    const results = await searchBooks(query);
     const response: BookSearchResponse = { results };
 
     return NextResponse.json(response);

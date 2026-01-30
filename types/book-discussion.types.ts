@@ -19,3 +19,9 @@ export interface BookDiscussionTokenResponse {
   token: string;
   model: string;
 }
+
+export interface BookCoverInfo {
+  title: string | null;
+  author: string | null;
+  publisher: string | null;
+}

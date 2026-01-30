@@ -1,6 +1,8 @@
 import { GoogleGenAI, Modality, EndSensitivity } from '@google/genai';
+import { BookCoverInfo } from '@/types';
 
 const GEMINI_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
+const GEMINI_VISION_MODEL = 'gemini-2.5-flash';
 
 let _ai: GoogleGenAI | null = null;
 
@@ -50,6 +52,47 @@ ${summarySection}
 - 책의 내용, 등장인물, 주제, 아이의 느낌과 생각에 대해 다양한 각도로 대화해.
 - 첫 인사는 한두 문장으로 짧게 해. 예: "안녕! ${bookTitle} 읽었구나, 어떤 내용이었어?"
 - 절대 책 제목을 다시 물어보지 마. 이미 알고 있으니까 바로 토론을 시작해.`;
+}
+
+export async function extractBookInfoFromImage(
+  imageBase64: string,
+  mimeType: string
+): Promise<BookCoverInfo> {
+  const ai = getClient();
+
+  const response = await ai.models.generateContent({
+    model: GEMINI_VISION_MODEL,
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            inlineData: {
+              mimeType,
+              data: imageBase64,
+            },
+          },
+          {
+            text: '이 이미지는 책 표지입니다. 책의 제목, 저자, 출판사를 추출해주세요. 반드시 아래 JSON 형식으로만 응답하세요. 정보를 알 수 없으면 null로 표시하세요.\n{"title": "책 제목", "author": "저자", "publisher": "출판사"}',
+          },
+        ],
+      },
+    ],
+  });
+
+  const text = response.text ?? '';
+
+  try {
+    const cleaned = text.replace(/```(?:json)?\s*|\s*```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      title: typeof parsed.title === 'string' ? parsed.title : null,
+      author: typeof parsed.author === 'string' ? parsed.author : null,
+      publisher: typeof parsed.publisher === 'string' ? parsed.publisher : null,
+    };
+  } catch {
+    return { title: null, author: null, publisher: null };
+  }
 }
 
 export async function createLiveSessionToken(
