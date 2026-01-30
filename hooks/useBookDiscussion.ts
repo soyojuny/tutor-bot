@@ -22,6 +22,7 @@ export function useBookDiscussion() {
   const [partialUserText, setPartialUserText] = useState('');
   const [partialAiText, setPartialAiText] = useState('');
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
 
   const sessionRef = useRef<Session | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -34,6 +35,8 @@ export function useBookDiscussion() {
   const activeSourceCountRef = useRef(0);
   const cleanedUpRef = useRef(false);
   const statusRef = useRef<ConnectionStatus>('idle');
+  const userSpeakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firstResponseDoneRef = useRef(false);
 
   // Keep statusRef in sync
   const updateStatus = useCallback((newStatus: ConnectionStatus) => {
@@ -70,6 +73,7 @@ export function useBookDiscussion() {
         if (activeSourceCountRef.current === 0 && playbackQueueRef.current.length === 0) {
           isPlayingRef.current = false;
           setIsAiSpeaking(false);
+          firstResponseDoneRef.current = true;
         }
       };
     }
@@ -160,6 +164,8 @@ export function useBookDiscussion() {
         setTranscripts([]);
         setPartialUserText('');
         setPartialAiText('');
+        setIsUserSpeaking(false);
+        firstResponseDoneRef.current = false;
 
         // 1. Fetch ephemeral token
         const tokenRes = await fetch('/api/book-discussion/token', {
@@ -173,9 +179,13 @@ export function useBookDiscussion() {
         }
         const { token, model } = await tokenRes.json();
 
-        // 2. Get microphone access
+        // 2. Get microphone access with echo cancellation
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
         });
         streamRef.current = stream;
 
@@ -219,6 +229,14 @@ export function useBookDiscussion() {
                 // Handle input transcription (user)
                 const inputT = message.serverContent?.inputTranscription;
                 if (inputT?.text) {
+                  setIsUserSpeaking(true);
+                  if (userSpeakingTimeoutRef.current) {
+                    clearTimeout(userSpeakingTimeoutRef.current);
+                  }
+                  userSpeakingTimeoutRef.current = setTimeout(() => {
+                    setIsUserSpeaking(false);
+                  }, 1500);
+
                   if (inputT.finished) {
                     const finalText = inputT.text;
                     setTranscripts((prev) => [
@@ -226,6 +244,11 @@ export function useBookDiscussion() {
                       { role: 'user', text: finalText },
                     ]);
                     setPartialUserText('');
+                    setIsUserSpeaking(false);
+                    if (userSpeakingTimeoutRef.current) {
+                      clearTimeout(userSpeakingTimeoutRef.current);
+                      userSpeakingTimeoutRef.current = null;
+                    }
                   } else {
                     setPartialUserText(inputT.text);
                   }
@@ -290,6 +313,17 @@ export function useBookDiscussion() {
         rejectConnect = null;
         sessionRef.current = session;
 
+        // Trigger AI to speak first by sending an initial user turn
+        session.sendClientContent({
+          turns: [
+            {
+              role: 'user',
+              parts: [{ text: `안녕하세요! "${bookTitle}" 다 읽었어요.` }],
+            },
+          ],
+          turnComplete: true,
+        });
+
         // 5. Set up microphone audio capture (16kHz)
         const captureCtx = new AudioContext({ sampleRate: 16000 });
         audioContextRef.current = captureCtx;
@@ -301,6 +335,25 @@ export function useBookDiscussion() {
         processor.onaudioprocess = (e: AudioProcessingEvent) => {
           if (!sessionRef.current) return;
           const float32Data = e.inputBuffer.getChannelData(0);
+
+          // Don't send mic audio until AI's first greeting is done
+          if (!firstResponseDoneRef.current) return;
+
+          // Local voice activity detection for responsive UI
+          let sum = 0;
+          for (let i = 0; i < float32Data.length; i++) {
+            sum += float32Data[i] * float32Data[i];
+          }
+          const rms = Math.sqrt(sum / float32Data.length);
+          if (rms > 0.01) {
+            setIsUserSpeaking(true);
+            if (userSpeakingTimeoutRef.current) {
+              clearTimeout(userSpeakingTimeoutRef.current);
+            }
+            userSpeakingTimeoutRef.current = setTimeout(() => {
+              setIsUserSpeaking(false);
+            }, 1000);
+          }
 
           // Float32 → Int16 PCM
           const int16 = new Int16Array(float32Data.length);
@@ -356,6 +409,11 @@ export function useBookDiscussion() {
     setPartialUserText('');
     setPartialAiText('');
     setIsAiSpeaking(false);
+    setIsUserSpeaking(false);
+    if (userSpeakingTimeoutRef.current) {
+      clearTimeout(userSpeakingTimeoutRef.current);
+      userSpeakingTimeoutRef.current = null;
+    }
   }, [cleanup, updateStatus]);
 
   // --- Reset Error ---
@@ -369,6 +427,9 @@ export function useBookDiscussion() {
   useEffect(() => {
     return () => {
       cleanup();
+      if (userSpeakingTimeoutRef.current) {
+        clearTimeout(userSpeakingTimeoutRef.current);
+      }
     };
   }, [cleanup]);
 
@@ -379,6 +440,7 @@ export function useBookDiscussion() {
     partialUserText,
     partialAiText,
     isAiSpeaking,
+    isUserSpeaking,
     startSession,
     stopSession,
     resetError,

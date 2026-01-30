@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { useBookDiscussion, TranscriptEntry } from '@/hooks/useBookDiscussion';
+import { useState } from 'react';
+import { useBookDiscussion } from '@/hooks/useBookDiscussion';
 import Card from '@/components/shared/Card';
 import Button from '@/components/shared/Button';
 import Input from '@/components/shared/Input';
@@ -21,21 +21,12 @@ export default function BookDiscussionPage() {
   const {
     status,
     error,
-    transcripts,
-    partialUserText,
-    partialAiText,
     isAiSpeaking,
+    isUserSpeaking,
     startSession,
     stopSession,
     resetError,
   } = useBookDiscussion();
-
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when new transcripts arrive
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [transcripts, partialUserText, partialAiText]);
 
   const handleStart = async () => {
     const trimmed = bookTitle.trim();
@@ -154,91 +145,54 @@ export default function BookDiscussionPage() {
     );
   }
 
-  // --- Connected State: Chat UI ---
+  // --- Connected State: Voice-only UI ---
   return (
     <div className="container mx-auto p-4 max-w-2xl h-screen flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="px-3 py-1 bg-green-100 rounded-full flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-green-600" />
-            <span className="text-sm font-medium text-green-700">
-              {bookTitle}
-            </span>
-          </div>
-          {isAiSpeaking && (
-            <div className="flex items-center gap-1 text-blue-500">
-              <Volume2 className="w-4 h-4 animate-pulse" />
-              <span className="text-xs">말하는 중...</span>
-            </div>
-          )}
+        <div className="px-3 py-1 bg-green-100 rounded-full flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-green-600" />
+          <span className="text-sm font-medium text-green-700">
+            {bookTitle}
+          </span>
         </div>
         <Button onClick={stopSession} variant="danger" size="sm">
           토론 끝내기
         </Button>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-inner p-4 space-y-3">
-        {transcripts.length === 0 && !partialAiText && !partialUserText && (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-            AI 선생님이 곧 말을 걸어줄 거예요...
-          </div>
-        )}
-
-        {transcripts.map((entry: TranscriptEntry, i: number) => (
-          <ChatBubble key={i} entry={entry} />
-        ))}
-
-        {/* Partial AI text (in progress) */}
-        {partialAiText && (
-          <ChatBubble
-            entry={{ role: 'ai', text: partialAiText }}
-            partial
-          />
-        )}
-
-        {/* Partial user text (in progress) */}
-        {partialUserText && (
-          <ChatBubble
-            entry={{ role: 'user', text: partialUserText }}
-            partial
-          />
-        )}
-
-        <div ref={chatEndRef} />
-      </div>
-
-      {/* Footer */}
-      <div className="mt-4 flex items-center justify-center gap-3 py-2">
-        <div className="flex items-center gap-2 text-green-600">
-          <Mic className="w-5 h-5" />
-          <span className="text-sm font-medium">마이크 활성화됨</span>
+      {/* Voice Status Area */}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          {isAiSpeaking ? (
+            <>
+              <div className="w-32 h-32 rounded-full bg-blue-100 flex items-center justify-center animate-pulse">
+                <Volume2 className="w-16 h-16 text-blue-500" />
+              </div>
+              <p className="text-lg font-medium text-blue-600">
+                AI 선생님이 말하고 있어요
+              </p>
+            </>
+          ) : isUserSpeaking ? (
+            <>
+              <div className="w-32 h-32 rounded-full bg-green-100 flex items-center justify-center animate-mic-pulse">
+                <Mic className="w-16 h-16 text-green-500" />
+              </div>
+              <p className="text-lg font-medium text-green-600">
+                잘 듣고 있어요!
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="w-32 h-32 rounded-full bg-gray-100 flex items-center justify-center">
+                <Mic className="w-16 h-16 text-gray-400" />
+              </div>
+              <p className="text-lg font-medium text-gray-500">
+                말해보세요!
+              </p>
+            </>
+          )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ChatBubble({
-  entry,
-  partial = false,
-}: {
-  entry: TranscriptEntry;
-  partial?: boolean;
-}) {
-  const isUser = entry.role === 'user';
-
-  return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm leading-relaxed ${
-          isUser
-            ? 'bg-yellow-100 text-gray-800 rounded-br-md'
-            : 'bg-gray-100 text-gray-800 rounded-bl-md'
-        } ${partial ? 'opacity-60' : ''}`}
-      >
-        {entry.text}
       </div>
     </div>
   );

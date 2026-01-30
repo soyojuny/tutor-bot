@@ -25,6 +25,19 @@ const config: Config = {
       animation: {
         'bounce-slow': 'bounce 2s infinite',
         'pulse-slow': 'pulse 3s infinite',
+        'mic-pulse': 'mic-pulse 1.5s ease-in-out infinite',
+      },
+      keyframes: {
+        'mic-pulse': {
+          '0%, 100%': {
+            transform: 'scale(1)',
+            boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.4)',
+          },
+          '50%': {
+            transform: 'scale(1.08)',
+            boxShadow: '0 0 0 20px rgba(34, 197, 94, 0)',
+          },
+        },
       },
     },
   },
