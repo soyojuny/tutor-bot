@@ -1,31 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getSessionFromRequest, requireAuth } from '@/lib/auth/session';
+import { withAuth, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 import { ActivityCompletionMetadata } from '@/types';
 import { isAvailableToday } from '@/lib/constants/activities';
 import { getKSTDateString } from '@/lib/utils/dates';
-
-// Supabase 타입 체인 호환성을 위한 타입
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseQueryResult<T> = { data: T | null; error: any };
-
-interface ActivityRow {
-  id: string;
-  title: string;
-  points_value: number;
-  assigned_to: string | null;
-  frequency: string;
-  max_daily_count: number;
-  is_template: boolean;
-  status: string;
-}
-
-interface CompletionRow {
-  id: string;
-  activity_id: string;
-  profile_id: string;
-  completed_date: string;
-}
+import { ActivityRow, ActivityCompletionRow, SupabaseQueryResult } from '@/lib/supabase/types';
 
 /**
  * POST /api/activities/[id]/complete
@@ -38,14 +17,8 @@ export async function POST(
   try {
     const { id } = await params;
 
-    // 세션 검증
-    const session = await getSessionFromRequest(request);
-    if (!requireAuth(session)) {
-      return NextResponse.json(
-        { error: '로그인이 필요합니다.' },
-        { status: 401 }
-      );
-    }
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
 
     const body = await request.json().catch(() => ({}));
     const metadata: ActivityCompletionMetadata = body.metadata || {};
@@ -96,7 +69,7 @@ export async function POST(
 
     // 오늘 완료 횟수 확인 (모든 상태 카운트 - 하루 최대 횟수 제한)
     const today = getKSTDateString(); // KST 기준
-    const { data: todayCompletions, error: countError }: SupabaseQueryResult<CompletionRow[]> = await supabase
+    const { data: todayCompletions, error: countError }: SupabaseQueryResult<ActivityCompletionRow[]> = await supabase
       .from('activity_completions')
       .select('id')
       .eq('activity_id', id)
@@ -152,11 +125,6 @@ export async function POST(
       message: `활동을 완료했습니다. (${todayCount + 1}/${activity.max_daily_count})`,
     }, { status: 201 });
   } catch (error) {
-    console.error('Error in POST /api/activities/[id]/complete:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/activities/[id]/complete');
   }
 }

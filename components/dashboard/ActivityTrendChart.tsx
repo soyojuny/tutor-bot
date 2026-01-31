@@ -3,6 +3,7 @@
 import { Activity } from '@/types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, subDays, startOfDay } from 'date-fns';
+import EmptyState from '../shared/EmptyState';
 
 interface ActivityTrendChartProps {
   activities: Activity[];
@@ -13,7 +14,6 @@ export default function ActivityTrendChart({ activities, days = 7 }: ActivityTre
   // 최근 N일 데이터 생성
   const trendData = Array.from({ length: days }, (_, i) => {
     const date = startOfDay(subDays(new Date(), days - 1 - i));
-    const dateString = format(date, 'yyyy-MM-dd');
     const dayLabel = format(date, 'MM/dd');
 
     const dayActivities = activities.filter((a) => {
@@ -33,9 +33,7 @@ export default function ActivityTrendChart({ activities, days = 7 }: ActivityTre
 
   if (trendData.every((data) => data.생성됨 === 0 && data.완료됨 === 0)) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
-        최근 {days}일 동안 활동 데이터가 없습니다.
-      </div>
+      <EmptyState message={`최근 ${days}일 동안 활동 데이터가 없습니다.`} height="256px" />
     );
   }
 

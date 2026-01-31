@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getSessionFromRequest,
-  requireAuth,
-} from '@/lib/auth/session';
+import { withAuth, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 import { createLiveSessionToken } from '@/lib/gemini/client';
 import { BookDiscussionTokenRequest } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionFromRequest(request);
-    if (!requireAuth(session)) {
-      return NextResponse.json(
-        { error: '로그인이 필요합니다.' },
-        { status: 401 }
-      );
-    }
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
 
     const body = (await request.json()) as BookDiscussionTokenRequest;
 
@@ -33,10 +25,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error in POST /api/book-discussion/token:', error);
-    return NextResponse.json(
-      { error: '토큰 생성에 실패했습니다.' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/book-discussion/token');
   }
 }

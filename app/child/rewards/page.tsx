@@ -5,12 +5,13 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useRewardStore } from '@/store/rewardStore';
 import { usePointsStore } from '@/store/pointsStore';
-import { Reward } from '@/types';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import RewardCard from '@/components/child/RewardCard';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
 import { RefreshCw, Gift } from 'lucide-react';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import ErrorAlert from '@/components/shared/ErrorAlert';
 
 export default function ChildRewardsPage() {
   const { user, isChild } = useAuth();
@@ -117,19 +118,10 @@ export default function ChildRewardsPage() {
         </Card>
 
         {/* 에러 메시지 */}
-        {error && (
-          <Card padding="md" className="bg-red-50 border-red-200">
-            <p className="text-red-600">{error}</p>
-          </Card>
-        )}
+        {error && <ErrorAlert message={error} />}
 
         {/* 로딩 상태 */}
-        {isLoading && (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-child-primary mx-auto mb-4"></div>
-            <p className="text-gray-600 text-lg">보상 목록을 불러오는 중...</p>
-          </div>
-        )}
+        {isLoading && <LoadingSpinner className="py-12" message="보상 목록을 불러오는 중..." />}
 
         {/* 보상 목록 */}
         {!isLoading && activeRewards.length === 0 && (

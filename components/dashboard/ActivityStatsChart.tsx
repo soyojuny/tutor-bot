@@ -3,6 +3,7 @@
 import { Activity } from '@/types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ACTIVITY_CATEGORIES } from '@/lib/constants/activities';
+import EmptyState from '../shared/EmptyState';
 
 interface ActivityStatsChartProps {
   activities: Activity[];
@@ -26,9 +27,7 @@ export default function ActivityStatsChart({ activities }: ActivityStatsChartPro
 
   if (categoryData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
-        아직 활동 데이터가 없습니다.
-      </div>
+      <EmptyState message="아직 활동 데이터가 없습니다." height="256px" />
     );
   }
 

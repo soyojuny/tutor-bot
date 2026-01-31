@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useRewardStore } from '@/store/rewardStore';
-import { Reward, RewardCategory } from '@/types';
-import { REWARD_CATEGORIES } from '@/lib/constants/rewards';
+import { Reward } from '@/types';
+import { REWARD_CATEGORIES, getRewardCategoryInfo } from '@/lib/constants/rewards';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import RewardForm from '@/components/parent/RewardForm';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
 import { Plus, Edit, Trash2, Trophy, CheckCircle2, XCircle, List } from 'lucide-react';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import ErrorAlert from '@/components/shared/ErrorAlert';
 
 export default function ManageRewardsPage() {
   const { user, isParent } = useAuth();
@@ -76,12 +78,6 @@ export default function ManageRewardsPage() {
   function handleFormClose() {
     setIsFormOpen(false);
     setRewardToEdit(undefined);
-  }
-
-  // 카테고리 정보 가져오기
-  function getCategoryInfo(category: RewardCategory | null | undefined) {
-    if (!category) return REWARD_CATEGORIES[REWARD_CATEGORIES.length - 1];
-    return REWARD_CATEGORIES.find((cat) => cat.value === category) || REWARD_CATEGORIES[REWARD_CATEGORIES.length - 1];
   }
 
   return (
@@ -152,19 +148,10 @@ export default function ManageRewardsPage() {
         </Card>
 
         {/* 에러 메시지 */}
-        {error && (
-          <Card padding="md" className="bg-red-50 border-red-200">
-            <p className="text-red-600">{error}</p>
-          </Card>
-        )}
+        {error && <ErrorAlert message={error} />}
 
         {/* 로딩 상태 */}
-        {isLoading && (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-parent-primary mx-auto mb-4"></div>
-            <p className="text-gray-600">보상 목록을 불러오는 중...</p>
-          </div>
-        )}
+        {isLoading && <LoadingSpinner className="py-12" message="보상 목록을 불러오는 중..." />}
 
         {/* 보상 목록 */}
         {!isLoading && filteredRewards.length === 0 && (
@@ -186,7 +173,7 @@ export default function ManageRewardsPage() {
         {!isLoading && filteredRewards.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredRewards.map((reward) => {
-              const categoryInfo = getCategoryInfo(reward.category);
+              const categoryInfo = getRewardCategoryInfo(reward.category);
 
               return (
                 <Card key={reward.id} padding="md" hoverable border>

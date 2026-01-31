@@ -49,6 +49,19 @@ export type DailyStreakInsert = Database['public']['Tables']['daily_streaks']['I
 export type DailyStreakUpdate = Database['public']['Tables']['daily_streaks']['Update'];
 
 // ============================================
+// Activity Completions 테이블
+// ============================================
+export type ActivityCompletionRow = Database['public']['Tables']['activity_completions']['Row'];
+export type ActivityCompletionInsert = Database['public']['Tables']['activity_completions']['Insert'];
+export type ActivityCompletionUpdate = Database['public']['Tables']['activity_completions']['Update'];
+
+// ============================================
 // Views
 // ============================================
 export type ProfilePointsBalanceRow = Database['public']['Views']['profile_points_balance']['Row'];
+
+// ============================================
+// 공통 유틸리티 타입
+// ============================================
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type SupabaseQueryResult<T> = { data: T | null; error: any };

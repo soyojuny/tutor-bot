@@ -1,9 +1,10 @@
 'use client';
 
 import { Activity, Profile } from '@/types';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ACTIVITY_CATEGORIES } from '@/lib/constants/activities';
 import Card from '@/components/shared/Card';
+import EmptyState from '../shared/EmptyState';
 
 interface CategoryAnalysisChartProps {
   activities: Activity[];
@@ -71,9 +72,7 @@ export default function CategoryAnalysisChart({
     return (
       <Card padding="lg">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">카테고리별 분석</h3>
-        <div className="flex items-center justify-center h-64 text-gray-500">
-          아직 활동 데이터가 없습니다.
-        </div>
+        <EmptyState message="아직 활동 데이터가 없습니다." height="256px" />
       </Card>
     );
   }

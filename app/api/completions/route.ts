@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getSessionFromRequest, requireAuth } from '@/lib/auth/session';
+import { withAuth, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 
 /**
  * GET /api/completions
@@ -8,14 +8,8 @@ import { getSessionFromRequest, requireAuth } from '@/lib/auth/session';
  */
 export async function GET(request: NextRequest) {
   try {
-    // 세션 검증
-    const session = await getSessionFromRequest(request);
-    if (!requireAuth(session)) {
-      return NextResponse.json(
-        { error: '로그인이 필요합니다.' },
-        { status: 401 }
-      );
-    }
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
@@ -65,11 +59,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ completions: completions || [] });
   } catch (error) {
-    console.error('Error in GET /api/completions:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/completions');
   }
 }

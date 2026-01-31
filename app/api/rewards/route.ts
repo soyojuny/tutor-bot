@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { CreateRewardInput } from '@/types';
-import { RewardRow } from '@/lib/supabase/types';
-import { getSessionFromRequest, requireParent } from '@/lib/auth/session';
-
-// Supabase 타입 체인 호환성을 위한 타입
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseQueryResult<T> = { data: T | null; error: any };
+import { RewardRow, SupabaseQueryResult } from '@/lib/supabase/types';
+import { withParent, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 
 /**
  * GET /api/rewards
@@ -40,12 +36,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ rewards: rewards || [] });
   } catch (error) {
-    console.error('Error in GET /api/rewards:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/rewards');
   }
 }
 
@@ -55,12 +46,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // --- 세션 검증 추가 ---
-    const session = await getSessionFromRequest(request);
-    if (!requireParent(session)) {
-      return NextResponse.json({ error: '보상은 부모만 생성할 수 있습니다.' }, { status: 403 });
-    }
-    // --- 검증 종료 ---
+    const session = await withParent(request);
+    if (isErrorResponse(session)) return session;
 
     const input = (await request.json()) as CreateRewardInput;
 
@@ -96,11 +83,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ reward }, { status: 201 });
   } catch (error) {
-    console.error('Error in POST /api/rewards:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/rewards');
   }
 }

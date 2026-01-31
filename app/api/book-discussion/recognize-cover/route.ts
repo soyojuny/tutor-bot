@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getSessionFromRequest,
-  requireAuth,
-} from '@/lib/auth/session';
+import { withAuth, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 import { extractBookInfoFromImage } from '@/lib/gemini/client';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -10,13 +7,8 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionFromRequest(request);
-    if (!requireAuth(session)) {
-      return NextResponse.json(
-        { error: '로그인이 필요합니다.' },
-        { status: 401 }
-      );
-    }
+    const authResult = await withAuth(request);
+    if (isErrorResponse(authResult)) return authResult;
 
     const formData = await request.formData();
     const file = formData.get('image') as File | null;
@@ -49,10 +41,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(bookInfo);
   } catch (error) {
-    console.error('Error in POST /api/book-discussion/recognize-cover:', error);
-    return NextResponse.json(
-      { error: '책 표지 인식에 실패했습니다.' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/book-discussion/recognize-cover');
   }
 }

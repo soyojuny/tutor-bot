@@ -56,3 +56,9 @@ export const SUGGESTED_REWARD_EMOJIS = [
   '🎬', '🎨', '⚽', '🎸', '📚', '🧸',
   '⭐', '🏆', '🎁', '😴', '🎉', '🌟',
 ];
+
+export function getRewardCategoryInfo(category: RewardCategory | null | undefined) {
+  if (!category) return REWARD_CATEGORIES[REWARD_CATEGORIES.length - 1];
+  return REWARD_CATEGORIES.find((c) => c.value === category)
+    ?? REWARD_CATEGORIES[REWARD_CATEGORIES.length - 1];
+}

@@ -114,3 +114,8 @@ export const COMPLETION_STATUS_COLORS = {
   completed: 'bg-yellow-100 text-yellow-800',
   verified: 'bg-emerald-100 text-emerald-800',
 } as const;
+
+export function getCategoryInfo(category: ActivityCategory) {
+  return ACTIVITY_CATEGORIES.find((c) => c.value === category)
+    ?? ACTIVITY_CATEGORIES[ACTIVITY_CATEGORIES.length - 1];
+}

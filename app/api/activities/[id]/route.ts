@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getSessionFromRequest, requireAuth, requireParent } from '@/lib/auth/session';
+import { withAuth, withParent, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 import { UpdateActivityInput } from '@/types';
 import { ActivityRow, ActivityUpdate } from '@/lib/supabase/types';
 import { getKSTDateString } from '@/lib/utils/dates';
@@ -14,14 +14,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 세션 검증
-    const session = await getSessionFromRequest(request);
-    if (!requireAuth(session)) {
-      return NextResponse.json(
-        { error: '로그인이 필요합니다.' },
-        { status: 401 }
-      );
-    }
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
 
     const { id } = await params;
     const body = await request.json();
@@ -180,12 +174,7 @@ export async function PATCH(
 
     return NextResponse.json({ activity: activity as ActivityRow });
   } catch (error) {
-    console.error('Error in PATCH /api/activities/[id]:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'PATCH /api/activities/[id]');
   }
 }
 
@@ -198,14 +187,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 세션 검증 - 부모만 삭제 가능
-    const session = await getSessionFromRequest(request);
-    if (!requireParent(session)) {
-      return NextResponse.json(
-        { error: '활동 삭제는 부모만 가능합니다.' },
-        { status: 403 }
-      );
-    }
+    const session = await withParent(request);
+    if (isErrorResponse(session)) return session;
 
     const { id } = await params;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -241,11 +224,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in DELETE /api/activities/[id]:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'DELETE /api/activities/[id]');
   }
 }

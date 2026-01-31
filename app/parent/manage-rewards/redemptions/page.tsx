@@ -3,13 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRewardStore } from '@/store/rewardStore';
-import { RewardRedemption, RedemptionStatus } from '@/types';
+import { RedemptionStatus } from '@/types';
 import { REDEMPTION_STATUS_LABELS, REDEMPTION_STATUS_COLORS } from '@/lib/constants/rewards';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
 import { CheckCircle2, XCircle, Gift, RefreshCw, User } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/utils/dates';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import ErrorAlert from '@/components/shared/ErrorAlert';
 
 export default function RewardRedemptionsPage() {
   const { user, isParent } = useAuth();
@@ -43,16 +45,6 @@ export default function RewardRedemptionsPage() {
   // 보상 정보 가져오기
   function getRewardInfo(rewardId: string) {
     return rewards.find((r) => r.id === rewardId);
-  }
-
-  // 날짜 포맷팅
-  function formatDate(dateString: string | undefined) {
-    if (!dateString) return null;
-    try {
-      return format(new Date(dateString), 'yyyy-MM-dd HH:mm');
-    } catch {
-      return null;
-    }
   }
 
   // 교환 상태 업데이트
@@ -138,19 +130,10 @@ export default function RewardRedemptionsPage() {
         </Card>
 
         {/* 에러 메시지 */}
-        {error && (
-          <Card padding="md" className="bg-red-50 border-red-200">
-            <p className="text-red-600">{error}</p>
-          </Card>
-        )}
+        {error && <ErrorAlert message={error} />}
 
         {/* 로딩 상태 */}
-        {isLoading && (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-parent-primary mx-auto mb-4"></div>
-            <p className="text-gray-600">교환 내역을 불러오는 중...</p>
-          </div>
-        )}
+        {isLoading && <LoadingSpinner className="py-12" message="교환 내역을 불러오는 중..." />}
 
         {/* 교환 내역 목록 */}
         {!isLoading && filteredRedemptions.length === 0 && (
@@ -200,7 +183,7 @@ export default function RewardRedemptionsPage() {
                           포인트: {redemption.points_spent}P
                         </div>
                         <div>
-                          요청: {formatDate(redemption.redeemed_at)}
+                          요청: {formatDate(redemption.redeemed_at, 'yyyy-MM-dd HH:mm')}
                         </div>
                       </div>
                     </div>

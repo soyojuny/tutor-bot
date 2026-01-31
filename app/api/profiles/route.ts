@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { handleApiError } from '@/lib/api/helpers';
 import { getSessionFromRequest } from '@/lib/auth/session';
 
 /**
@@ -53,11 +54,6 @@ export async function GET(request: NextRequest) {
     // 로그인한 경우 전체 정보 반환
     return NextResponse.json({ profiles: profiles || [] });
   } catch (error) {
-    console.error('Error in GET /api/profiles:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/profiles');
   }
 }

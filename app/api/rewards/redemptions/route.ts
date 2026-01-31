@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { RewardRow, ProfileRow, PointsLedgerRow, RedemptionRow } from '@/lib/supabase/types';
-import { getSessionFromRequest, requireAuth } from '@/lib/auth/session';
-
-// Supabase 타입 체인 호환성을 위한 타입
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseQueryResult<T> = { data: T | null; error: any };
+import { RewardRow, RedemptionRow, SupabaseQueryResult } from '@/lib/supabase/types';
+import { withAuth, withChild, isErrorResponse, handleApiError } from '@/lib/api/helpers';
+import { getCurrentBalance, addPointsTransaction } from '@/lib/services/points';
 
 /**
  * GET /api/rewards/redemptions?profile_id=xxx
@@ -19,16 +16,12 @@ export async function GET(request: NextRequest) {
     const profileId = searchParams.get('profile_id');
     const status = searchParams.get('status');
 
-    // --- 세션 검증 추가 ---
-    const session = await getSessionFromRequest(request);
-    if (!requireAuth(session)) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-    }
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
     // 부모는 모든 기록을 볼 수 있지만, 아이는 자기 것만 볼 수 있음
     if (session.role === 'child' && profileId !== session.userId) {
       return NextResponse.json({ error: '자신의 교환 내역만 조회할 수 있습니다.' }, { status: 403 });
     }
-    // --- 검증 종료 ---
 
     let query = supabase
       .from('reward_redemptions')
@@ -54,12 +47,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ redemptions: redemptions || [] });
   } catch (error) {
-    console.error('Error in GET /api/rewards/redemptions:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/rewards/redemptions');
   }
 }
 
@@ -69,16 +57,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // --- 세션 검증 추가 ---
-    const session = await getSessionFromRequest(request);
-    if (!requireAuth(session)) {
-      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
-    }
-
-    if (session.role !== 'child') {
-      return NextResponse.json({ error: '보상 교환은 아이만 할 수 있습니다.' }, { status: 403 });
-    }
-    // --- 검증 종료 ---
+    const session = await withChild(request);
+    if (isErrorResponse(session)) return session;
 
     const body = await request.json();
     const { reward_id } = body as { reward_id: string };
@@ -115,15 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 현재 포인트 잔액 조회 (세션 ID 사용)
-    const { data: latestTransaction }: SupabaseQueryResult<PointsLedgerRow> = await supabase
-      .from('points_ledger')
-      .select('balance_after')
-      .eq('profile_id', session.userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    const currentBalance = latestTransaction?.balance_after ?? 0;
+    const currentBalance = await getCurrentBalance(supabase, session.userId);
 
     // 포인트 충분한지 확인
     if (currentBalance < reward.points_cost) {
@@ -137,16 +109,14 @@ export async function POST(request: NextRequest) {
 
     // 트랜잭션 시작: 포인트 차감 + 교환 요청 생성
     // 1. 포인트 원장에 거래 기록 추가 (차감) - 세션 ID 사용
-    const { error: ledgerError } = await supabase
-      .from('points_ledger')
-      .insert({
-        profile_id: session.userId,
-        reward_id,
-        points_change: -reward.points_cost,
-        balance_after: newBalance,
-        transaction_type: 'spent',
-        notes: `보상 "${reward.title}" 교환으로 인한 포인트 차감`,
-      });
+    const { error: ledgerError } = await addPointsTransaction(supabase, {
+      profileId: session.userId,
+      rewardId: reward_id,
+      pointsChange: -reward.points_cost,
+      balanceAfter: newBalance,
+      transactionType: 'spent',
+      notes: `보상 "${reward.title}" 교환으로 인한 포인트 차감`,
+    });
 
     if (ledgerError) {
       console.error('Error creating points transaction:', ledgerError);
@@ -183,11 +153,6 @@ export async function POST(request: NextRequest) {
       new_balance: newBalance,
     }, { status: 201 });
   } catch (error) {
-    console.error('Error in POST /api/rewards/redemptions:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/rewards/redemptions');
   }
 }

@@ -1,22 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityStore } from '@/store/activityStore';
-import { Activity, ActivityCategory, ActivityCompletion } from '@/types';
-import { ACTIVITY_CATEGORIES, ACTIVITY_STATUS_LABELS, ACTIVITY_STATUS_COLORS } from '@/lib/constants/activities';
+import { Activity, ActivityCategory } from '@/types';
+import { ACTIVITY_CATEGORIES, ACTIVITY_STATUS_LABELS, ACTIVITY_STATUS_COLORS, getCategoryInfo } from '@/lib/constants/activities';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import ActivityForm from '@/components/parent/ActivityForm';
 import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
-import { Plus, Edit, Trash2, Calendar, User, Trophy, CheckCircle2, Clock } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Edit, Trash2, Calendar, Trophy, CheckCircle2, Clock } from 'lucide-react';
+import { formatDate } from '@/lib/utils/dates';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import ErrorAlert from '@/components/shared/ErrorAlert';
 
 export default function ManageActivitiesPage() {
   const { user, isParent } = useAuth();
-  const router = useRouter();
   const {
     activities,
     pendingCompletions,
@@ -150,21 +150,6 @@ export default function ManageActivitiesPage() {
     setIsFormOpen(true);
   }
 
-  // 날짜 포맷팅
-  function formatDate(dateString: string | undefined) {
-    if (!dateString) return null;
-    try {
-      return format(new Date(dateString), 'yyyy-MM-dd');
-    } catch {
-      return null;
-    }
-  }
-
-  // 카테고리 정보 가져오기
-  function getCategoryInfo(category: ActivityCategory) {
-    return ACTIVITY_CATEGORIES.find((cat) => cat.value === category) || ACTIVITY_CATEGORIES[ACTIVITY_CATEGORIES.length - 1];
-  }
-
   return (
     <ProtectedRoute allowedRoles={['parent']}>
       <div className="container mx-auto p-6 space-y-6">
@@ -228,11 +213,7 @@ export default function ManageActivitiesPage() {
         </Card>
 
         {/* 에러 메시지 */}
-        {error && (
-          <Card padding="md" className="bg-red-50 border-red-200">
-            <p className="text-red-600">{error}</p>
-          </Card>
-        )}
+        {error && <ErrorAlert message={error} />}
 
         {/* 검증 대기 완료 기록 (반복/전체 대상 활동) */}
         {pendingCompletions.length > 0 && (
@@ -273,12 +254,7 @@ export default function ManageActivitiesPage() {
         )}
 
         {/* 로딩 상태 */}
-        {isLoading && (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-parent-primary mx-auto mb-4"></div>
-            <p className="text-gray-600">활동 목록을 불러오는 중...</p>
-          </div>
-        )}
+        {isLoading && <LoadingSpinner className="py-12" message="활동 목록을 불러오는 중..." />}
 
         {/* 활동 목록 */}
         {!isLoading && filteredActivities.length === 0 && (

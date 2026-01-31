@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { handleApiError } from '@/lib/api/helpers';
 import { RedemptionStatus } from '@/types';
-import { RedemptionRow } from '@/lib/supabase/types';
-
-// Supabase 타입 체인 호환성을 위한 타입
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseQueryResult<T> = { data: T | null; error: any };
+import { RedemptionRow, SupabaseQueryResult } from '@/lib/supabase/types';
 
 /**
  * PATCH /api/rewards/redemptions/[id]
@@ -74,11 +71,6 @@ export async function PATCH(
 
     return NextResponse.json({ redemption });
   } catch (error) {
-    console.error('Error in PATCH /api/rewards/redemptions/[id]:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'PATCH /api/rewards/redemptions/[id]');
   }
 }

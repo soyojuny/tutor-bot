@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getSessionFromRequest, requireAuth, requireParent } from '@/lib/auth/session';
+import { withAuth, withParent, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 import { CreateActivityInput, Activity, ActivityWithTodayStatus, ActivityCompletion } from '@/types';
 import { ActivityRow, ProfileRow } from '@/lib/supabase/types';
 import { isAvailableToday } from '@/lib/constants/activities';
@@ -12,14 +12,8 @@ import { getKSTDateString } from '@/lib/utils/dates';
  */
 export async function GET(request: NextRequest) {
   try {
-    // 세션 검증
-    const session = await getSessionFromRequest(request);
-    if (!requireAuth(session)) {
-      return NextResponse.json(
-        { error: '로그인이 필요합니다.' },
-        { status: 401 }
-      );
-    }
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
@@ -110,12 +104,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ activities: (activities || []) as Activity[] });
   } catch (error) {
-    console.error('Error in GET /api/activities:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/activities');
   }
 }
 
@@ -125,14 +114,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 세션 검증 - 부모만 활동 생성 가능
-    const session = await getSessionFromRequest(request);
-    if (!requireParent(session)) {
-      return NextResponse.json(
-        { error: '활동은 부모만 생성할 수 있습니다.' },
-        { status: 403 }
-      );
-    }
+    const session = await withParent(request);
+    if (isErrorResponse(session)) return session;
 
     const body = await request.json();
     const input = body as CreateActivityInput;
@@ -193,11 +176,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ activity: activity as ActivityRow }, { status: 201 });
   } catch (error) {
-    console.error('Error in POST /api/activities:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/activities');
   }
 }

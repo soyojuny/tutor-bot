@@ -3,6 +3,7 @@
 import { PointsTransaction, Profile } from '@/types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, subDays, startOfDay } from 'date-fns';
+import EmptyState from '../shared/EmptyState';
 
 interface PointsTrendChartProps {
   transactions: Record<string, PointsTransaction[]>; // profile_id -> transactions
@@ -49,9 +50,7 @@ export default function PointsTrendChart({
 
   if (!hasData) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
-        최근 {days}일 동안 포인트 데이터가 없습니다.
-      </div>
+      <EmptyState message={`최근 ${days}일 동안 포인트 데이터가 없습니다.`} height="256px" />
     );
   }
 

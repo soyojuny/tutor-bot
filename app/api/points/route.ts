@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { PointsLedgerRow } from '@/lib/supabase/types';
-
-// Supabase 타입 체인 호환성을 위한 타입
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseQueryResult<T> = { data: T | null; error: any };
+import { handleApiError } from '@/lib/api/helpers';
+import { PointsLedgerRow, SupabaseQueryResult } from '@/lib/supabase/types';
 
 /**
  * GET /api/points?profile_id=xxx
@@ -57,11 +54,6 @@ export async function GET(request: NextRequest) {
       transactions: transactions || [],
     });
   } catch (error) {
-    console.error('Error in GET /api/points:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/points');
   }
 }

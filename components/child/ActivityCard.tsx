@@ -10,7 +10,7 @@ import {
 import Card from '@/components/shared/Card';
 import Button from '@/components/shared/Button';
 import { Trophy, Calendar, CheckCircle2, PlayCircle, Repeat, RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/utils/dates';
 
 interface ActivityCardProps {
   activity: Activity | ActivityWithTodayStatus;
@@ -35,16 +35,6 @@ export default function ActivityCard({
   const isRepeating = activity.is_template || activity.assigned_to === null;
   const hasToday = 'today_completion_count' in activity;
   const todayActivity = hasToday ? (activity as ActivityWithTodayStatus) : null;
-
-  // 날짜 포맷팅
-  function formatDate(dateString: string | undefined) {
-    if (!dateString) return null;
-    try {
-      return format(new Date(dateString), 'yyyy-MM-dd');
-    } catch {
-      return null;
-    }
-  }
 
   // 상태에 따른 버튼 표시
   function renderActionButton() {
