@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const raw = await searchBooks(query);
 
     // Filter: only keep books whose title matches the search title
-    const normalize = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
+    const normalize = (s: string) => s.replace(/\s+/g, '').toLowerCase();
     const target = normalize(searchTitle);
     const results = raw.filter((book) => {
       const bookTitle = normalize(book.title);
