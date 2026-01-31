@@ -113,8 +113,7 @@ export async function createLiveSessionToken(
           outputAudioTranscription: {},
           realtimeInputConfig: {
             automaticActivityDetection: {
-              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-              silenceDurationMs: 1000,
+              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH,
             },
           },
         },

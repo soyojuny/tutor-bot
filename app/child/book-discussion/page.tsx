@@ -37,6 +37,7 @@ export default function BookDiscussionPage() {
     error,
     isAiSpeaking,
     isUserSpeaking,
+    hasAiResponded,
     startSession,
     stopSession,
     resetError,
@@ -58,8 +59,9 @@ export default function BookDiscussionPage() {
   }, [transcript]);
 
   // Sync hook status to page state for connecting/connected/error
+  // Stay in 'connecting' until AI actually starts speaking
   const effectiveState: PageState =
-    status === 'connecting'
+    status === 'connecting' || (status === 'connected' && !hasAiResponded)
       ? 'connecting'
       : status === 'connected'
         ? 'connected'

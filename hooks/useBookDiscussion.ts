@@ -23,6 +23,7 @@ export function useBookDiscussion() {
   const [partialAiText, setPartialAiText] = useState('');
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+  const [hasAiResponded, setHasAiResponded] = useState(false);
 
   const sessionRef = useRef<Session | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -86,6 +87,8 @@ export function useBookDiscussion() {
     (base64Pcm: string) => {
       const ctx = playbackContextRef.current;
       if (!ctx || ctx.state === 'closed') return;
+
+      setHasAiResponded(true);
 
       const binaryStr = atob(base64Pcm);
       const bytes = new Uint8Array(binaryStr.length);
@@ -165,28 +168,30 @@ export function useBookDiscussion() {
         setPartialUserText('');
         setPartialAiText('');
         setIsUserSpeaking(false);
+        setHasAiResponded(false);
         firstResponseDoneRef.current = false;
 
-        // 1. Fetch ephemeral token
-        const tokenRes = await fetch('/api/book-discussion/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bookTitle, bookSummary, childAge }),
-        });
-        if (!tokenRes.ok) {
-          const data = await tokenRes.json().catch(() => ({}));
+        // 1. Fetch token & request mic in parallel (independent operations)
+        const [tokenResult, stream] = await Promise.all([
+          fetch('/api/book-discussion/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookTitle, bookSummary, childAge }),
+          }),
+          navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          }),
+        ]);
+        if (!tokenResult.ok) {
+          stream.getTracks().forEach((t) => t.stop());
+          const data = await tokenResult.json().catch(() => ({}));
           throw new Error(data.error || '토큰 발급에 실패했습니다.');
         }
-        const { token, model } = await tokenRes.json();
-
-        // 2. Get microphone access with echo cancellation
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        });
+        const { token, model } = await tokenResult.json();
         streamRef.current = stream;
 
         // 3. Create playback context
@@ -329,7 +334,7 @@ export function useBookDiscussion() {
         audioContextRef.current = captureCtx;
 
         const source = captureCtx.createMediaStreamSource(stream);
-        const processor = captureCtx.createScriptProcessor(4096, 1, 1);
+        const processor = captureCtx.createScriptProcessor(2048, 1, 1);
         processorRef.current = processor;
 
         processor.onaudioprocess = (e: AudioProcessingEvent) => {
@@ -441,6 +446,7 @@ export function useBookDiscussion() {
     partialAiText,
     isAiSpeaking,
     isUserSpeaking,
+    hasAiResponded,
     startSession,
     stopSession,
     resetError,
