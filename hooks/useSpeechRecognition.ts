@@ -44,7 +44,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       for (let i = 0; i < event.results.length; i++) {
         text += event.results[i][0].transcript;
       }
-      setTranscript(text);
+      setTranscript(text.replace(/[.。]+$/, ''));
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {

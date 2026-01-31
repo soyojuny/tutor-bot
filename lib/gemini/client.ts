@@ -73,7 +73,7 @@ export async function extractBookInfoFromImage(
             },
           },
           {
-            text: '이 이미지는 책 표지입니다. 책의 제목, 저자, 출판사를 추출해주세요. 반드시 아래 JSON 형식으로만 응답하세요. 정보를 알 수 없으면 null로 표시하세요.\n{"title": "책 제목", "author": "저자", "publisher": "출판사"}',
+            text: '이 이미지는 책 표지입니다. 이미지에서 눈으로 직접 읽을 수 있는 텍스트만을 기반으로 책의 제목과 저자를 추출해주세요.\n\n중요 규칙:\n- 이미지에 글자로 보이는 정보만 추출하세요.\n- 배경지식으로 추측하거나 보충하지 마세요.\n- 이미지에서 읽을 수 없는 항목은 반드시 null로 표시하세요.\n\n반드시 아래 JSON 형식으로만 응답하세요.\n{"title": "책 제목", "author": "저자"}',
           },
         ],
       },
@@ -88,7 +88,7 @@ export async function extractBookInfoFromImage(
     return {
       title: typeof parsed.title === 'string' ? parsed.title : null,
       author: typeof parsed.author === 'string' ? parsed.author : null,
-      publisher: typeof parsed.publisher === 'string' ? parsed.publisher : null,
+      publisher: null,
     };
   } catch {
     return { title: null, author: null, publisher: null };

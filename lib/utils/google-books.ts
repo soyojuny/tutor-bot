@@ -19,14 +19,12 @@ export async function searchBooks(
   const params = new URLSearchParams({
     q: query,
     maxResults: String(maxResults),
-    langRestrict: 'ko',
     printType: 'books',
     key: apiKey,
   });
 
   const res = await fetch(`${GOOGLE_BOOKS_API_URL}?${params}`);
   if (!res.ok) {
-    console.error('Google Books API error:', res.status, await res.text());
     return [];
   }
 
@@ -38,7 +36,7 @@ export async function searchBooks(
   return data.items.map((item: Record<string, unknown>) => {
     const info = item.volumeInfo as Record<string, unknown> | undefined;
     const imageLinks = info?.imageLinks as Record<string, string> | undefined;
-    let thumbnail = imageLinks?.thumbnail ?? null;
+    let thumbnail = imageLinks?.thumbnail ?? imageLinks?.smallThumbnail ?? null;
 
     if (thumbnail) {
       thumbnail = thumbnail.replace(/^http:/, 'https:');
