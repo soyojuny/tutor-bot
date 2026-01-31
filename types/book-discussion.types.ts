@@ -25,3 +25,21 @@ export interface BookCoverInfo {
   author: string | null;
   publisher: string | null;
 }
+
+export interface BookDiscussionRecord {
+  id: string;
+  profile_id: string;
+  book_title: string;
+  summary: string | null;
+  discussed_at: string;
+  created_at: string;
+}
+
+export interface BookDiscussionWithProfile extends BookDiscussionRecord {
+  profile_name: string;
+}
+
+export interface SaveBookDiscussionRequest {
+  bookTitle: string;
+  transcripts: { role: 'user' | 'ai'; text: string }[];
+}

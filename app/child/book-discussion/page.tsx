@@ -38,9 +38,11 @@ export default function BookDiscussionPage() {
     isAiSpeaking,
     isUserSpeaking,
     hasAiResponded,
+    isSaving,
     startSession,
     stopSession,
     resetError,
+    saveDiscussion,
   } = useBookDiscussion();
   const {
     isListening,
@@ -188,6 +190,22 @@ export default function BookDiscussionPage() {
     setSearchResults([]);
     setSearchError(null);
   };
+
+  // --- Saving State ---
+  if (isSaving) {
+    return (
+      <div className="container mx-auto p-8 max-w-lg">
+        <Card padding="lg">
+          <div className="flex flex-col items-center gap-4 py-12">
+            <Loader2 className="w-12 h-12 text-green-500 animate-spin" />
+            <p className="text-lg text-gray-700 font-medium">
+              토론 기록을 저장하고 있어요...
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // --- Idle State: Book title input ---
   if (effectiveState === 'idle') {
@@ -467,8 +485,16 @@ export default function BookDiscussionPage() {
             {bookTitle}
           </span>
         </div>
-        <Button onClick={stopSession} variant="danger" size="sm">
-          토론 끝내기
+        <Button
+          onClick={async () => {
+            stopSession();
+            await saveDiscussion(bookTitle);
+          }}
+          variant="danger"
+          size="sm"
+          disabled={isSaving}
+        >
+          {isSaving ? '저장 중...' : '토론 끝내기'}
         </Button>
       </div>
 

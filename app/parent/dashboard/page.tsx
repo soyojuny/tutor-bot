@@ -11,7 +11,7 @@ import Card from '@/components/shared/Card';
 import PointsDisplay from '@/components/shared/PointsDisplay';
 import ActivityStatsChart from '@/components/dashboard/ActivityStatsChart';
 import ActivityTrendChart from '@/components/dashboard/ActivityTrendChart';
-import { Plus, ClipboardList, Gift, BarChart3, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Plus, ClipboardList, Gift, BarChart3, BookOpen, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ParentDashboard() {
@@ -128,7 +128,7 @@ export default function ParentDashboard() {
         </div>
 
         {/* 빠른 링크 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card
             hoverable
             onClick={() => router.push('/parent/manage-activities')}
@@ -173,6 +173,22 @@ export default function ParentDashboard() {
               <div>
                 <h3 className="font-semibold text-gray-900">모니터링</h3>
                 <p className="text-sm text-gray-600">진행 상황 분석</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card
+            hoverable
+            onClick={() => router.push('/parent/reading-records')}
+            className="cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-orange-100 rounded-lg">
+                <BookOpen className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">독서 기록</h3>
+                <p className="text-sm text-gray-600">독서 토론 기록</p>
               </div>
             </div>
           </Card>

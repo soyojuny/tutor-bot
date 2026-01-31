@@ -61,6 +61,13 @@ export type ActivityCompletionUpdate = Database['public']['Tables']['activity_co
 export type ProfilePointsBalanceRow = Database['public']['Views']['profile_points_balance']['Row'];
 
 // ============================================
+// Book Discussions 테이블
+// ============================================
+export type BookDiscussionRow = Database['public']['Tables']['book_discussions']['Row'];
+export type BookDiscussionInsert = Database['public']['Tables']['book_discussions']['Insert'];
+export type BookDiscussionUpdate = Database['public']['Tables']['book_discussions']['Update'];
+
+// ============================================
 // 공통 유틸리티 타입
 // ============================================
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

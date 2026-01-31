@@ -95,6 +95,44 @@ export async function extractBookInfoFromImage(
   }
 }
 
+export async function generateDiscussionSummary(
+  bookTitle: string,
+  transcripts: { role: 'user' | 'ai'; text: string }[]
+): Promise<string> {
+  try {
+    const userUtterances = transcripts
+      .filter((t) => t.role === 'user')
+      .map((t) => t.text)
+      .join('\n');
+
+    if (!userUtterances.trim()) {
+      return `"${bookTitle}"에 대해 토론했습니다.`;
+    }
+
+    const ai = getClient();
+    const response = await ai.models.generateContent({
+      model: GEMINI_VISION_MODEL,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `아이가 "${bookTitle}"이라는 책에 대해 독서 토론을 했습니다. 아래는 아이가 한 말들입니다.\n\n${userUtterances}\n\n위 내용을 바탕으로 아이가 이 책에 대해 어떤 이야기를 나눴는지 한 문장으로 요약해주세요. 부모가 읽을 용도이며, 간결하고 따뜻한 톤으로 작성해주세요.`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const text = response.text?.trim();
+    if (text) return text;
+    return `"${bookTitle}"에 대해 토론했습니다.`;
+  } catch (error) {
+    console.error('Failed to generate discussion summary:', error);
+    return `"${bookTitle}"에 대해 토론했습니다.`;
+  }
+}
+
 export async function createLiveSessionToken(
   bookTitle: string,
   bookSummary?: string,

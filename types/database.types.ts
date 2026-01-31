@@ -284,6 +284,32 @@ export interface Database {
           updated_at?: string;
         };
       };
+      book_discussions: {
+        Row: {
+          id: string;
+          profile_id: string;
+          book_title: string;
+          summary: string | null;
+          discussed_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          book_title: string;
+          summary?: string | null;
+          discussed_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          book_title?: string;
+          summary?: string | null;
+          discussed_at?: string;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       profile_points_balance: {

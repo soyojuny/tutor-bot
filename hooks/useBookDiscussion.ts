@@ -24,6 +24,7 @@ export function useBookDiscussion() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [hasAiResponded, setHasAiResponded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const sessionRef = useRef<Session | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -428,6 +429,28 @@ export function useBookDiscussion() {
     updateStatus('idle');
   }, [updateStatus]);
 
+  const saveDiscussion = useCallback(
+    async (bookTitle: string) => {
+      setIsSaving(true);
+      try {
+        const res = await fetch('/api/book-discussions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookTitle, transcripts }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          console.error('Failed to save discussion:', data.error);
+        }
+      } catch (err) {
+        console.error('Failed to save discussion:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [transcripts]
+  );
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -447,8 +470,10 @@ export function useBookDiscussion() {
     isAiSpeaking,
     isUserSpeaking,
     hasAiResponded,
+    isSaving,
     startSession,
     stopSession,
     resetError,
+    saveDiscussion,
   };
 }
