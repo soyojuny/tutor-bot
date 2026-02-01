@@ -152,6 +152,7 @@ export async function createLiveSessionToken(
           realtimeInputConfig: {
             automaticActivityDetection: {
               endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH,
+              silenceDurationMs: 1000,
             },
           },
         },
