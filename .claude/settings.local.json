@@ -7,7 +7,17 @@
       "Bash(npx create-next-app:*)",
       "Bash(npm install)",
       "Bash(npm install:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell -Command \"Stop-Process -Id 27764 -Force\")",
+      "Bash(find:*)",
+      "Bash(while read file)",
+      "Bash(do wc:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

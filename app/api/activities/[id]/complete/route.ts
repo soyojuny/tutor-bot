@@ -31,6 +31,7 @@ export async function POST(
       .from('activities')
       .select('*')
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .single();
 
     if (fetchError || !activityData) {
@@ -72,6 +73,7 @@ export async function POST(
     const { data: todayCompletions, error: countError }: SupabaseQueryResult<ActivityCompletionRow[]> = await supabase
       .from('activity_completions')
       .select('id')
+      .eq('family_id', session.familyId)
       .eq('activity_id', id)
       .eq('profile_id', session.userId)
       .eq('completed_date', today);
@@ -103,6 +105,7 @@ export async function POST(
       .insert({
         activity_id: id,
         profile_id: session.userId,
+        family_id: session.familyId,
         completed_date: today,
         status: 'completed',
         metadata,

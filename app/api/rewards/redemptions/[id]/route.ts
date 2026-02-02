@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { handleApiError } from '@/lib/api/helpers';
+import { handleApiError, withParent, isErrorResponse } from '@/lib/api/helpers';
 import { RedemptionStatus } from '@/types';
 import { RedemptionRow, SupabaseQueryResult } from '@/lib/supabase/types';
 
@@ -13,6 +13,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await withParent(request);
+    if (isErrorResponse(session)) return session;
+
     const { id } = await params;
     const body = await request.json();
     const { status, fulfilled_by } = body as { status: RedemptionStatus; fulfilled_by?: string };
@@ -32,6 +35,7 @@ export async function PATCH(
       .from('reward_redemptions')
       .select('*')
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .single();
 
     if (fetchError || !existingRedemption) {
@@ -58,6 +62,7 @@ export async function PATCH(
       .from('reward_redemptions')
       .update(updateData)
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .select()
       .single();
 

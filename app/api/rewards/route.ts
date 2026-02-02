@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { CreateRewardInput } from '@/types';
 import { RewardRow, SupabaseQueryResult } from '@/lib/supabase/types';
-import { withParent, isErrorResponse, handleApiError } from '@/lib/api/helpers';
+import { withParent, withAuth, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 
 /**
  * GET /api/rewards
@@ -10,6 +10,9 @@ import { withParent, isErrorResponse, handleApiError } from '@/lib/api/helpers';
  */
 export async function GET(request: NextRequest) {
   try {
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
     const searchParams = request.nextUrl.searchParams;
@@ -18,6 +21,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('rewards')
       .select('*, created_by:profiles(name)')
+      .eq('family_id', session.familyId)
       .order('created_at', { ascending: false });
 
     if (isActive !== null) {
@@ -67,6 +71,7 @@ export async function POST(request: NextRequest) {
       .from('rewards')
       .insert({
         ...input,
+        family_id: session.familyId,
         created_by: session.userId,
         is_active: true,
       })

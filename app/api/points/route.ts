@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { withAuth, isErrorResponse, handleApiError, assertProfileInFamily } from '@/lib/api/helpers';
+import { withAuth, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 import { PointsLedgerRow, SupabaseQueryResult } from '@/lib/supabase/types';
 
 /**
@@ -24,19 +24,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 가족 범위 확인
-    if (!await assertProfileInFamily(profileId, session.familyId)) {
-      return NextResponse.json(
-        { error: '접근 권한이 없습니다.' },
-        { status: 403 }
-      );
-    }
-
     // 현재 잔액 계산: 가장 최근 balance_after
     const { data: latestTransaction }: SupabaseQueryResult<PointsLedgerRow> = await supabase
       .from('points_ledger')
       .select('balance_after')
       .eq('profile_id', profileId)
+      .eq('family_id', session.familyId)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -48,6 +41,7 @@ export async function GET(request: NextRequest) {
       .from('points_ledger')
       .select('*')
       .eq('profile_id', profileId)
+      .eq('family_id', session.familyId)
       .order('created_at', { ascending: false })
       .limit(50);
 

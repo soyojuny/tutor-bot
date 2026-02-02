@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { withAuth, isErrorResponse, handleApiError, assertProfileInFamily } from '@/lib/api/helpers';
+import { withAuth, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 import { DailyStreakRow, SupabaseQueryResult } from '@/lib/supabase/types';
 import { updateStreak } from '@/lib/services/streaks';
 
@@ -15,14 +15,6 @@ export async function GET(
 
     const { profileId } = await params;
 
-    // 가족 범위 확인
-    if (!await assertProfileInFamily(profileId, session.familyId)) {
-      return NextResponse.json(
-        { error: '접근 권한이 없습니다.' },
-        { status: 403 }
-      );
-    }
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
 
@@ -30,6 +22,7 @@ export async function GET(
       .from('daily_streaks')
       .select('*')
       .eq('profile_id', profileId)
+      .eq('family_id', session.familyId)
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
@@ -57,15 +50,18 @@ export async function POST(
   { params }: { params: Promise<{ profileId: string }> }
 ) {
   try {
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
+
     const { profileId } = await params;
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
 
-    const data = await updateStreak(supabase, profileId);
+    const data = await updateStreak(supabase, profileId, session.familyId);
 
     return NextResponse.json(data);
   } catch (error) {
     return handleApiError(error, 'POST /api/streaks/[profileId]');
   }
 }
-

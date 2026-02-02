@@ -3,6 +3,7 @@
  */
 export interface DailyStreak {
   id: string;
+  family_id: string;
   profile_id: string;
   streak_count: number;
   last_activity_date: string;

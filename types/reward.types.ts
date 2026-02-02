@@ -3,6 +3,7 @@ export type RedemptionStatus = 'pending' | 'approved' | 'fulfilled' | 'rejected'
 
 export interface Reward {
   id: string;
+  family_id: string;
   title: string;
   description?: string;
   points_cost: number;
@@ -33,6 +34,7 @@ export interface UpdateRewardInput {
 
 export interface RewardRedemption {
   id: string;
+  family_id: string;
   reward_id: string;
   profile_id: string;
   points_spent: number;

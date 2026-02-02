@@ -70,6 +70,7 @@ export interface Database {
       activities: {
         Row: {
           id: string;
+          family_id: string;
           title: string;
           description: string | null;
           category: 'homework' | 'reading' | 'problem-solving' | 'practice' | 'other';
@@ -89,6 +90,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          family_id: string;
           title: string;
           description?: string | null;
           category: 'homework' | 'reading' | 'problem-solving' | 'practice' | 'other';
@@ -108,6 +110,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          family_id?: string;
           title?: string;
           description?: string | null;
           category?: 'homework' | 'reading' | 'problem-solving' | 'practice' | 'other';
@@ -129,6 +132,7 @@ export interface Database {
       activity_completions: {
         Row: {
           id: string;
+          family_id: string;
           activity_id: string;
           profile_id: string;
           completed_date: string;
@@ -143,6 +147,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          family_id: string;
           activity_id: string;
           profile_id: string;
           completed_date?: string;
@@ -157,6 +162,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          family_id?: string;
           activity_id?: string;
           profile_id?: string;
           completed_date?: string;
@@ -173,6 +179,7 @@ export interface Database {
       rewards: {
         Row: {
           id: string;
+          family_id: string;
           title: string;
           description: string | null;
           points_cost: number;
@@ -185,6 +192,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          family_id: string;
           title: string;
           description?: string | null;
           points_cost: number;
@@ -197,6 +205,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          family_id?: string;
           title?: string;
           description?: string | null;
           points_cost?: number;
@@ -211,6 +220,7 @@ export interface Database {
       points_ledger: {
         Row: {
           id: string;
+          family_id: string;
           profile_id: string | null;
           activity_id: string | null;
           reward_id: string | null;
@@ -223,6 +233,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          family_id: string;
           profile_id?: string | null;
           activity_id?: string | null;
           reward_id?: string | null;
@@ -235,6 +246,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          family_id?: string;
           profile_id?: string | null;
           activity_id?: string | null;
           reward_id?: string | null;
@@ -249,6 +261,7 @@ export interface Database {
       reward_redemptions: {
         Row: {
           id: string;
+          family_id: string;
           reward_id: string | null;
           profile_id: string | null;
           points_spent: number;
@@ -260,6 +273,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          family_id: string;
           reward_id?: string | null;
           profile_id?: string | null;
           points_spent: number;
@@ -271,6 +285,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          family_id?: string;
           reward_id?: string | null;
           profile_id?: string | null;
           points_spent?: number;
@@ -284,6 +299,7 @@ export interface Database {
       daily_streaks: {
         Row: {
           id: string;
+          family_id: string;
           profile_id: string | null;
           streak_count: number;
           last_activity_date: string;
@@ -293,6 +309,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          family_id: string;
           profile_id?: string | null;
           streak_count?: number;
           last_activity_date: string;
@@ -302,6 +319,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          family_id?: string;
           profile_id?: string | null;
           streak_count?: number;
           last_activity_date?: string;
@@ -313,6 +331,7 @@ export interface Database {
       book_discussions: {
         Row: {
           id: string;
+          family_id: string;
           profile_id: string;
           book_title: string;
           summary: string | null;
@@ -321,6 +340,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          family_id: string;
           profile_id: string;
           book_title: string;
           summary?: string | null;
@@ -329,6 +349,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          family_id?: string;
           profile_id?: string;
           book_title?: string;
           summary?: string | null;

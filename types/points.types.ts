@@ -2,6 +2,7 @@ export type TransactionType = 'earned' | 'spent' | 'adjusted' | 'bonus';
 
 export interface PointsTransaction {
   id: string;
+  family_id: string;
   profile_id: string;
   activity_id?: string;
   reward_id?: string;

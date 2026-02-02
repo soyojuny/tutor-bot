@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('activities')
       .select('*')
+      .eq('family_id', session.familyId)
       .order('created_at', { ascending: false });
 
     if (assignedTo) {
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
       const { data: completions } = await supabase
         .from('activity_completions')
         .select('*')
+        .eq('family_id', session.familyId)
         .in('activity_id', activityIds)
         .eq('completed_date', today);
 
@@ -70,6 +72,7 @@ export async function GET(request: NextRequest) {
         const { data: pending } = await supabase
           .from('activity_completions')
           .select('*')
+          .eq('family_id', session.familyId)
           .eq('profile_id', assignedTo)
           .eq('status', 'completed');
         pendingCompletions = (pending || []) as ActivityCompletion[];
@@ -164,6 +167,7 @@ export async function POST(request: NextRequest) {
       .from('activities')
       .insert({
         ...input,
+        family_id: session.familyId,
         created_by: session.userId,
         status: 'pending',
         frequency,
