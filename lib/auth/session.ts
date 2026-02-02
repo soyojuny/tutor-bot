@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { SignJWT, jwtVerify } from 'jose';
+import { createServerClient } from '@supabase/ssr';
 import { Profile } from '@/types';
 
 const SECRET_KEY = new TextEncoder().encode(
@@ -13,6 +14,7 @@ export interface SessionPayload {
   userId: string;
   role: 'parent' | 'child';
   name: string;
+  familyId: string;
   exp: number;
 }
 
@@ -26,6 +28,7 @@ export async function createSessionToken(user: Profile): Promise<string> {
     userId: user.id,
     role: user.role,
     name: user.name,
+    familyId: user.family_id,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(Math.floor(expiresAt / 1000))
@@ -109,6 +112,45 @@ export async function getSessionFromRequest(request: Request): Promise<SessionPa
   }
 
   return verifySessionToken(token);
+}
+
+/**
+ * Supabase Auth 사용자 조회 (Request 헤더에서)
+ * Google OAuth 세션 확인용
+ */
+export async function getSupabaseUserFromRequest(request: Request) {
+  const cookieHeader = request.headers.get('cookie');
+  if (!cookieHeader) return null;
+
+  // Parse cookies from header for Supabase client
+  const parsedCookies: Record<string, string> = {};
+  cookieHeader.split(';').forEach((cookie) => {
+    const trimmed = cookie.trim();
+    const equalsIndex = trimmed.indexOf('=');
+    if (equalsIndex === -1) return;
+    parsedCookies[trimmed.substring(0, equalsIndex)] = trimmed.substring(equalsIndex + 1);
+  });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return Object.entries(parsedCookies).map(([name, value]) => ({
+            name,
+            value,
+          }));
+        },
+        setAll() {
+          // No-op in API route context
+        },
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
 }
 
 /**

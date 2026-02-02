@@ -131,11 +131,11 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
 
-    // assigned_to가 있으면 해당 프로필이 존재하는지 확인
+    // assigned_to가 있으면 해당 프로필이 같은 가족이고 아이 역할인지 확인
     if (input.assigned_to) {
       const { data: assigneeData, error: assigneeError } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, family_id')
         .eq('id', input.assigned_to)
         .single();
 
@@ -143,6 +143,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: '유효하지 않은 할당 대상입니다.' },
           { status: 400 }
+        );
+      }
+
+      if (assigneeData.family_id !== session.familyId) {
+        return NextResponse.json(
+          { error: '같은 가족의 프로필에만 활동을 할당할 수 있습니다.' },
+          { status: 403 }
         );
       }
     }

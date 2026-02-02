@@ -19,7 +19,8 @@ export default function ProtectedRoute({
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push('/login');
+      // 프로필 미선택 → 프로필 선택 페이지로 (Google 인증은 거기서 체크)
+      router.push('/profiles');
       return;
     }
 
@@ -28,8 +29,6 @@ export default function ProtectedRoute({
     }
   }, [isAuthenticated, user, allowedRoles, router]);
 
-  // SessionProvider가 세션 확인을 처리하므로, 인증되지 않았거나 권한이 없는 경우
-  // 리디렉션이 발생하기 전까지 null을 반환
   if (!isAuthenticated || (allowedRoles && user && !allowedRoles.includes(user.role))) {
     return null;
   }

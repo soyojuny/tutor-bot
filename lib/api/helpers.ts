@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import {
   getSessionFromRequest,
+  getSupabaseUserFromRequest,
   requireAuth,
   requireParent,
   requireChild,
   SessionPayload,
 } from '@/lib/auth/session';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
  * 인증 가드 — 세션 또는 에러 응답 반환
@@ -55,4 +57,53 @@ export function handleApiError(error: unknown, context: string): NextResponse {
   console.error(`Error in ${context}:`, error);
   const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
   return NextResponse.json({ error: message }, { status: 500 });
+}
+
+/**
+ * 프로필이 특정 가족에 속하는지 확인
+ */
+export async function assertProfileInFamily(profileId: string, familyId: string): Promise<boolean> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createAdminClient() as any;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', profileId)
+    .eq('family_id', familyId)
+    .single();
+
+  return !error && !!data;
+}
+
+/**
+ * 가족에 속한 모든 프로필 ID 조회
+ */
+export async function getFamilyProfileIds(familyId: string): Promise<string[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createAdminClient() as any;
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('family_id', familyId);
+
+  return (data || []).map((p: { id: string }) => p.id);
+}
+
+/**
+ * Supabase Auth 사용자의 가족 ID 조회
+ */
+export async function getFamilyIdFromAuthUser(request: Request): Promise<string | null> {
+  const supabaseUser = await getSupabaseUserFromRequest(request);
+  if (!supabaseUser) return null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createAdminClient() as any;
+  const { data: family } = await supabase
+    .from('families')
+    .select('id')
+    .eq('owner_id', supabaseUser.id)
+    .limit(1)
+    .single();
+
+  return family?.id ?? null;
 }

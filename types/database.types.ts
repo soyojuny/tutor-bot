@@ -9,6 +9,29 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      families: {
+        Row: {
+          id: string;
+          name: string;
+          owner_id: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name?: string;
+          owner_id: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          owner_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       profiles: {
         Row: {
           id: string;
@@ -16,7 +39,8 @@ export interface Database {
           role: 'parent' | 'child';
           age: number | null;
           avatar_url: string | null;
-          pin_code: string;
+          pin_code: string | null;
+          family_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -26,7 +50,8 @@ export interface Database {
           role: 'parent' | 'child';
           age?: number | null;
           avatar_url?: string | null;
-          pin_code: string;
+          pin_code?: string | null;
+          family_id: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -36,7 +61,8 @@ export interface Database {
           role?: 'parent' | 'child';
           age?: number | null;
           avatar_url?: string | null;
-          pin_code?: string;
+          pin_code?: string | null;
+          family_id?: string;
           created_at?: string;
           updated_at?: string;
         };

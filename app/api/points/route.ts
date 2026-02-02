@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { handleApiError } from '@/lib/api/helpers';
+import { withAuth, isErrorResponse, handleApiError, assertProfileInFamily } from '@/lib/api/helpers';
 import { PointsLedgerRow, SupabaseQueryResult } from '@/lib/supabase/types';
 
 /**
@@ -9,6 +9,9 @@ import { PointsLedgerRow, SupabaseQueryResult } from '@/lib/supabase/types';
  */
 export async function GET(request: NextRequest) {
   try {
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
     const searchParams = request.nextUrl.searchParams;
@@ -18,6 +21,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'profile_id가 필요합니다.' },
         { status: 400 }
+      );
+    }
+
+    // 가족 범위 확인
+    if (!await assertProfileInFamily(profileId, session.familyId)) {
+      return NextResponse.json(
+        { error: '접근 권한이 없습니다.' },
+        { status: 403 }
       );
     }
 

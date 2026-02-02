@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withChild, withParent, isErrorResponse, handleApiError } from '@/lib/api/helpers';
+import { withChild, withParent, isErrorResponse, handleApiError, assertProfileInFamily, getFamilyProfileIds } from '@/lib/api/helpers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateDiscussionSummary } from '@/lib/gemini/client';
 import { SaveBookDiscussionRequest } from '@/types';
@@ -66,11 +66,25 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const profileId = searchParams.get('profile_id');
 
+    // 가족 범위 확인
+    if (profileId) {
+      if (!await assertProfileInFamily(profileId, session.familyId)) {
+        return NextResponse.json(
+          { error: '접근 권한이 없습니다.' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // 가족에 속한 프로필만 조회
+    const familyProfileIds = await getFamilyProfileIds(session.familyId);
+
     const supabase = createAdminClient();
 
     let query = supabase
       .from('book_discussions' as 'profiles')
       .select('*, profiles!inner(name)')
+      .in('profile_id', familyProfileIds)
       .order('discussed_at', { ascending: false });
 
     if (profileId) {
