@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { createClient } from '@/lib/supabase/client';
+import { Plus, X } from 'lucide-react';
 
 interface ProfileItem {
   id: string;
@@ -15,12 +16,27 @@ interface ProfileItem {
   family_id: string;
 }
 
+interface NewProfileForm {
+  name: string;
+  role: 'parent' | 'child';
+  age: string;
+  pin: string;
+}
+
 export default function ProfilesPage() {
   const [profiles, setProfiles] = useState<ProfileItem[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<ProfileItem | null>(null);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [newProfileForm, setNewProfileForm] = useState<NewProfileForm>({
+    name: '',
+    role: 'child',
+    age: '',
+    pin: '',
+  });
   const router = useRouter();
   const { selectProfile, isAuthenticated, fullLogout } = useAuthStore();
 
@@ -117,6 +133,45 @@ export default function ProfilesPage() {
     router.push('/login');
   }
 
+  async function handleCreateProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+
+    if (!newProfileForm.name.trim()) {
+      setError('이름을 입력해주세요.');
+      return;
+    }
+
+    setCreateLoading(true);
+    try {
+      const response = await fetch('/api/profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: newProfileForm.name.trim(),
+          role: newProfileForm.role,
+          age: newProfileForm.age ? parseInt(newProfileForm.age) : null,
+          pin: newProfileForm.pin || null,
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '프로필 생성에 실패했습니다.');
+      }
+
+      // Reset form and refresh profiles
+      setIsCreating(false);
+      setNewProfileForm({ name: '', role: 'child', age: '', pin: '' });
+      await fetchProfiles();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '프로필 생성에 실패했습니다.');
+    } finally {
+      setCreateLoading(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -136,45 +191,178 @@ export default function ProfilesPage() {
           <p className="text-gray-600">프로필을 선택하세요</p>
         </div>
 
-        {!selectedProfile ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              {profiles.map((profile) => (
-                <button
-                  key={profile.id}
-                  onClick={() => handleProfileSelect(profile)}
-                  className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-all hover:scale-105 text-center"
-                >
-                  <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-gradient-to-br flex items-center justify-center text-4xl
-                    ${profile.role === 'parent' ? 'from-blue-100 to-blue-200' : 'from-yellow-100 to-yellow-200'}">
-                    {profile.role === 'parent' ? '👨' : '👦'}
-                  </div>
-                  <div className="font-semibold text-gray-800 text-lg">
-                    {profile.name}
-                  </div>
-                  {profile.age && (
-                    <div className="text-sm text-gray-500 mt-1">{profile.age}세</div>
-                  )}
-                  {profile.has_pin && (
-                    <div className="text-xs text-gray-400 mt-2">PIN 필요</div>
-                  )}
-                </button>
-              ))}
+        {isCreating ? (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-800">새 프로필 만들기</h2>
+              <button
+                onClick={() => {
+                  setIsCreating(false);
+                  setError('');
+                  setNewProfileForm({ name: '', role: 'child', age: '', pin: '' });
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
+
+            <form onSubmit={handleCreateProfile} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  이름
+                </label>
+                <input
+                  type="text"
+                  value={newProfileForm.name}
+                  onChange={(e) => setNewProfileForm({ ...newProfileForm, name: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                  placeholder="이름을 입력하세요"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  역할
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewProfileForm({ ...newProfileForm, role: 'parent' })}
+                    className={`py-3 px-4 rounded-lg border-2 text-center transition-all ${
+                      newProfileForm.role === 'parent'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700 font-semibold'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    부모
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewProfileForm({ ...newProfileForm, role: 'child' })}
+                    className={`py-3 px-4 rounded-lg border-2 text-center transition-all ${
+                      newProfileForm.role === 'child'
+                        ? 'border-yellow-500 bg-yellow-50 text-yellow-700 font-semibold'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    아이
+                  </button>
+                </div>
+              </div>
+
+              {newProfileForm.role === 'child' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    나이 (선택)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="19"
+                    value={newProfileForm.age}
+                    onChange={(e) => setNewProfileForm({ ...newProfileForm, age: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                    placeholder="나이"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  PIN (선택, 4자리 숫자)
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={newProfileForm.pin}
+                  onChange={(e) => setNewProfileForm({ ...newProfileForm, pin: e.target.value.replace(/\D/g, '') })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                  placeholder="설정하지 않으면 PIN 없이 접속"
+                />
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-600">{error}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={createLoading || !newProfileForm.name.trim()}
+                className="w-full py-3 px-4 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createLoading ? '생성 중...' : '프로필 만들기'}
+              </button>
+            </form>
+          </div>
+        ) : !selectedProfile ? (
+          <div className="space-y-4">
+            {profiles.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-6">
+                  첫 번째 프로필을 만들어보세요!
+                </p>
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="w-32 h-32 mx-auto rounded-xl border-4 border-dashed border-gray-300 flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+                >
+                  <Plus className="w-12 h-12" />
+                  <span className="text-sm font-medium">프로필 추가</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {profiles.map((profile) => (
+                  <button
+                    key={profile.id}
+                    onClick={() => handleProfileSelect(profile)}
+                    className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-all hover:scale-105 text-center"
+                  >
+                    <div className={`w-20 h-20 mx-auto mb-3 rounded-full bg-gradient-to-br flex items-center justify-center text-4xl ${
+                      profile.role === 'parent' ? 'from-blue-100 to-blue-200' : 'from-yellow-100 to-yellow-200'
+                    }`}>
+                      {profile.role === 'parent' ? '👨' : '👦'}
+                    </div>
+                    <div className="font-semibold text-gray-800 text-lg">
+                      {profile.name}
+                    </div>
+                    {profile.age && (
+                      <div className="text-sm text-gray-500 mt-1">{profile.age}세</div>
+                    )}
+                    {profile.has_pin && (
+                      <div className="text-xs text-gray-400 mt-2">PIN 필요</div>
+                    )}
+                  </button>
+                ))}
+
+                {/* Add profile "+" card */}
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="rounded-xl border-3 border-dashed border-gray-300 p-6 hover:border-blue-400 hover:bg-blue-50 transition-all hover:scale-105 text-center flex flex-col items-center justify-center gap-2"
+                >
+                  <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+                    <Plus className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <div className="font-semibold text-gray-500 text-lg">
+                    프로필 추가
+                  </div>
+                </button>
+              </div>
+            )}
 
             {error && (
               <p className="text-sm text-red-600 text-center">{error}</p>
             )}
 
             <div className="flex justify-center gap-4 mt-6">
-              {profiles.some(p => p.role === 'parent') && (
-                <button
-                  onClick={() => router.push('/profiles/manage')}
-                  className="text-sm text-gray-500 hover:text-gray-700 underline"
-                >
-                  프로필 관리
-                </button>
-              )}
+              <button
+                onClick={() => router.push('/profiles/manage')}
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                프로필 관리
+              </button>
               <button
                 onClick={handleFullLogout}
                 className="text-sm text-gray-500 hover:text-gray-700 underline"

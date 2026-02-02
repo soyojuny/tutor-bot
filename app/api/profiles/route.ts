@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
-  withParent,
-  isErrorResponse,
   handleApiError,
   getFamilyIdFromAuthUser,
 } from '@/lib/api/helpers';
@@ -88,12 +86,31 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/profiles
- * 새 프로필 생성 (부모만 가능)
+ * 새 프로필 생성
+ * - 부모 프로필 세션이 있으면 해당 가족에 생성
+ * - 프로필 세션 없으면 Google OAuth로 가족 소유자 확인 (프로필 선택 화면에서 생성 시)
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await withParent(request);
-    if (isErrorResponse(session)) return session;
+    // 부모 프로필 세션 먼저 확인
+    const session = await getSessionFromRequest(request);
+    let familyId: string | null = null;
+
+    if (session && session.role === 'parent') {
+      familyId = session.familyId;
+    }
+
+    // 프로필 세션 없으면 Google OAuth로 가족 소유자 확인
+    if (!familyId) {
+      familyId = await getFamilyIdFromAuthUser(request);
+    }
+
+    if (!familyId) {
+      return NextResponse.json(
+        { error: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
 
     const body = await request.json();
     const { name, role, age, pin } = body;
@@ -128,7 +145,7 @@ export async function POST(request: NextRequest) {
         role,
         age: age ?? null,
         pin_code: hashedPin,
-        family_id: session.familyId,
+        family_id: familyId,
       })
       .select('id, name, role, age, avatar_url, family_id, created_at')
       .single();

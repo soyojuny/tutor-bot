@@ -202,6 +202,9 @@ export function useBookDiscussion() {
 
         // 3. Create playback context
         playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
+        if (playbackContextRef.current.state === 'suspended') {
+          await playbackContextRef.current.resume();
+        }
 
         // 4. Connect to Gemini Live API
         // Use Promise.race to handle WebSocket failures where the SDK's
@@ -339,8 +342,19 @@ export function useBookDiscussion() {
           turnComplete: true,
         });
 
+        // Safety timeout: if AI greeting never finishes playing, enable mic anyway
+        setTimeout(() => {
+          if (!firstResponseDoneRef.current && statusRef.current === 'connected') {
+            console.warn('[BookDiscussion] AI greeting timeout - enabling mic');
+            firstResponseDoneRef.current = true;
+          }
+        }, 15000);
+
         // 5. Set up microphone audio capture (16kHz)
         const captureCtx = new AudioContext({ sampleRate: 16000 });
+        if (captureCtx.state === 'suspended') {
+          await captureCtx.resume();
+        }
         audioContextRef.current = captureCtx;
 
         const source = captureCtx.createMediaStreamSource(stream);
@@ -385,12 +399,19 @@ export function useBookDiscussion() {
           }
           const base64 = btoa(binary);
 
-          sessionRef.current.sendRealtimeInput({
-            audio: {
-              data: base64,
-              mimeType: 'audio/pcm;rate=16000',
-            },
-          });
+          try {
+            sessionRef.current.sendRealtimeInput({
+              audio: {
+                data: base64,
+                mimeType: 'audio/pcm;rate=16000',
+              },
+            });
+          } catch (err) {
+            console.error('[BookDiscussion] sendRealtimeInput failed:', err);
+            setError('음성 전송에 실패했습니다. 다시 시도해주세요.');
+            updateStatus('error');
+            cleanup();
+          }
         };
 
         source.connect(processor);

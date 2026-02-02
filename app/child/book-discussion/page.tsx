@@ -35,6 +35,9 @@ export default function BookDiscussionPage() {
   const {
     status,
     error,
+    transcripts,
+    partialUserText,
+    partialAiText,
     isAiSpeaking,
     isUserSpeaking,
     hasAiResponded,
@@ -44,6 +47,7 @@ export default function BookDiscussionPage() {
     resetError,
     saveDiscussion,
   } = useBookDiscussion();
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
   const {
     isListening,
     transcript,
@@ -59,6 +63,11 @@ export default function BookDiscussionPage() {
       setBookTitle(transcript);
     }
   }, [transcript]);
+
+  // Auto-scroll transcript to bottom on new messages
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcripts, partialUserText, partialAiText]);
 
   // Sync hook status to page state for connecting/connected/error
   // Stay in 'connecting' until AI actually starts speaking
@@ -474,7 +483,7 @@ export default function BookDiscussionPage() {
     );
   }
 
-  // --- Connected State: Voice-only UI ---
+  // --- Connected State: Voice UI with transcript ---
   return (
     <div className="container mx-auto p-4 max-w-2xl h-screen flex flex-col">
       {/* Header */}
@@ -498,38 +507,76 @@ export default function BookDiscussionPage() {
         </Button>
       </div>
 
-      {/* Voice Status Area */}
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6">
-          {isAiSpeaking ? (
-            <>
-              <div className="w-32 h-32 rounded-full bg-blue-100 flex items-center justify-center animate-pulse">
-                <Volume2 className="w-16 h-16 text-blue-500" />
-              </div>
-              <p className="text-lg font-medium text-blue-600">
-                AI 선생님이 말하고 있어요
-              </p>
-            </>
-          ) : isUserSpeaking ? (
-            <>
-              <div className="w-32 h-32 rounded-full bg-green-100 flex items-center justify-center animate-mic-pulse">
-                <Mic className="w-16 h-16 text-green-500" />
-              </div>
-              <p className="text-lg font-medium text-green-600">
-                잘 듣고 있어요!
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="w-32 h-32 rounded-full bg-gray-100 flex items-center justify-center">
-                <Mic className="w-16 h-16 text-gray-400" />
-              </div>
-              <p className="text-lg font-medium text-gray-500">
-                말해보세요!
-              </p>
-            </>
-          )}
-        </div>
+      {/* Voice Status Indicator (compact) */}
+      <div className="flex items-center justify-center gap-3 py-3">
+        {isAiSpeaking ? (
+          <>
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center animate-pulse">
+              <Volume2 className="w-8 h-8 text-blue-500" />
+            </div>
+            <p className="text-base font-medium text-blue-600">
+              AI 선생님이 말하고 있어요
+            </p>
+          </>
+        ) : isUserSpeaking ? (
+          <>
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center animate-mic-pulse">
+              <Mic className="w-8 h-8 text-green-500" />
+            </div>
+            <p className="text-base font-medium text-green-600">
+              잘 듣고 있어요!
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+              <Mic className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-base font-medium text-gray-500">
+              말해보세요!
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Transcript Panel */}
+      <div className="flex-1 overflow-y-auto rounded-xl bg-gray-50 border border-gray-200 p-4 space-y-3">
+        {transcripts.length === 0 && !partialAiText && !partialUserText && (
+          <p className="text-center text-gray-400 text-sm py-8">
+            대화 내용이 여기에 표시됩니다
+          </p>
+        )}
+        {transcripts.map((entry, idx) => (
+          <div
+            key={idx}
+            className={`flex ${entry.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+                entry.role === 'user'
+                  ? 'bg-green-500 text-white rounded-br-md'
+                  : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
+              }`}
+            >
+              {entry.text}
+            </div>
+          </div>
+        ))}
+        {partialAiText && (
+          <div className="flex justify-start">
+            <div className="max-w-[80%] rounded-2xl rounded-bl-md px-4 py-2 text-sm bg-white text-gray-800 border border-gray-200 opacity-70">
+              {partialAiText}
+            </div>
+          </div>
+        )}
+        {partialUserText && (
+          <div className="flex justify-end">
+            <div className="max-w-[80%] rounded-2xl rounded-br-md px-4 py-2 text-sm bg-green-400 text-white opacity-70">
+              {partialUserText}
+            </div>
+          </div>
+        )}
+        <div ref={transcriptEndRef} />
       </div>
     </div>
   );
