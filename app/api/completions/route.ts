@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { withAuth, isErrorResponse, handleApiError } from '@/lib/api/helpers';
+import { withAuth, isErrorResponse, handleApiError, assertProfileInFamily } from '@/lib/api/helpers';
 
 /**
  * GET /api/completions
@@ -35,6 +35,13 @@ export async function GET(request: NextRequest) {
       query = query.eq('activity_id', activityId);
     }
     if (profileId) {
+      // 가족 범위 확인
+      if (!await assertProfileInFamily(profileId, session.familyId)) {
+        return NextResponse.json(
+          { error: '접근 권한이 없습니다.' },
+          { status: 403 }
+        );
+      }
       query = query.eq('profile_id', profileId);
     }
     if (status) {

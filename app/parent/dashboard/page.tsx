@@ -15,7 +15,7 @@ import { Plus, ClipboardList, Gift, BarChart3, BookOpen, CheckCircle2, Clock, Al
 import { format } from 'date-fns';
 
 export default function ParentDashboard() {
-  const { user, logout } = useAuth();
+  const { user, switchProfile, fullLogout } = useAuth();
   const router = useRouter();
   const [childProfiles, setChildProfiles] = useState<Profile[]>([]);
   const [childBalances, setChildBalances] = useState<Record<string, number>>({});
@@ -119,12 +119,20 @@ export default function ParentDashboard() {
             <h1 className="text-3xl font-bold text-gray-800">부모 대시보드</h1>
             <p className="text-gray-600 mt-1">안녕하세요, {user?.name}님!</p>
           </div>
-          <button
-            onClick={logout}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          >
-            로그아웃
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={switchProfile}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+            >
+              프로필 전환
+            </button>
+            <button
+              onClick={fullLogout}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+            >
+              로그아웃
+            </button>
+          </div>
         </div>
 
         {/* 빠른 링크 */}

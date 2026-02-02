@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { RewardRow, RedemptionRow, SupabaseQueryResult } from '@/lib/supabase/types';
-import { withAuth, withChild, isErrorResponse, handleApiError } from '@/lib/api/helpers';
+import { withAuth, withChild, isErrorResponse, handleApiError, assertProfileInFamily } from '@/lib/api/helpers';
 import { getCurrentBalance, addPointsTransaction } from '@/lib/services/points';
 
 /**
@@ -29,6 +29,13 @@ export async function GET(request: NextRequest) {
       .order('redeemed_at', { ascending: false });
 
     if (profileId) {
+      // 가족 범위 확인
+      if (!await assertProfileInFamily(profileId, session.familyId)) {
+        return NextResponse.json(
+          { error: '접근 권한이 없습니다.' },
+          { status: 403 }
+        );
+      }
       query = query.eq('profile_id', profileId);
     }
     if (status) {

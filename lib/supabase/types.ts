@@ -7,6 +7,13 @@
 import { Database } from '@/types/database.types';
 
 // ============================================
+// Family 테이블
+// ============================================
+export type FamilyRow = Database['public']['Tables']['families']['Row'];
+export type FamilyInsert = Database['public']['Tables']['families']['Insert'];
+export type FamilyUpdate = Database['public']['Tables']['families']['Update'];
+
+// ============================================
 // Profile 테이블
 // ============================================
 export type ProfileRow = Database['public']['Tables']['profiles']['Row'];

@@ -14,7 +14,7 @@ import { ClipboardList, Gift, Trophy, CheckCircle2, Clock, BookOpen } from 'luci
 import { format } from 'date-fns';
 
 export default function ChildDashboard() {
-  const { user, logout } = useAuth();
+  const { user, switchProfile, fullLogout } = useAuth();
   const router = useRouter();
   const { balance, fetchBalance } = usePointsStore();
   const { activities, fetchActivities } = useActivityStore();
@@ -94,12 +94,20 @@ export default function ChildDashboard() {
             </h1>
             <p className="text-gray-600 mt-2 text-lg">오늘도 열심히 해보자!</p>
           </div>
-          <button
-            onClick={logout}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          >
-            로그아웃
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={switchProfile}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+            >
+              프로필 전환
+            </button>
+            <button
+              onClick={fullLogout}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+            >
+              로그아웃
+            </button>
+          </div>
         </div>
 
         {/* 포인트 & 연속 달성일 표시 */}

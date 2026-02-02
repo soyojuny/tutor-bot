@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
  * GET /api/auth/me
- * 현재 로그인된 사용자 정보 조회
+ * 현재 로그인된 사용자 정보 조회 (familyId 포함)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,10 +18,11 @@ export async function GET(request: NextRequest) {
     }
 
     // 최신 프로필 정보 조회
-    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, name, role, age, avatar_url')
+      .select('id, name, role, age, avatar_url, family_id')
       .eq('id', session.userId)
       .single();
 
@@ -32,7 +33,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ user: profile });
+    return NextResponse.json({
+      user: profile,
+      familyId: session.familyId,
+    });
   } catch (error) {
     console.error('Error in GET /api/auth/me:', error);
     return NextResponse.json(

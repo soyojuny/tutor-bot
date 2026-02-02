@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { handleApiError } from '@/lib/api/helpers';
+import {
+  withParent,
+  isErrorResponse,
+  handleApiError,
+  getFamilyIdFromAuthUser,
+} from '@/lib/api/helpers';
 import { getSessionFromRequest } from '@/lib/auth/session';
+import { hashPin } from '@/lib/utils/auth';
 
 /**
  * GET /api/profiles
  * 프로필 목록 조회
- * - 로그인 전: 기본 정보만 반환 (id, name, role, avatar_url)
- * - 로그인 후: 세션에 따라 더 많은 정보 반환 가능
+ * - 프로필 세션 있음: 같은 가족의 프로필만 반환
+ * - Google 인증만 있음: 가족 프로필 반환 (프로필 선택 페이지용)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -16,16 +22,29 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const role = searchParams.get('role');
 
-    // 세션 확인 (선택적)
+    // 프로필 세션 확인
     const session = await getSessionFromRequest(request);
+    let familyId: string | null = session?.familyId ?? null;
 
-    // 민감하지 않은 필드만 선택 (pin_code 제외)
+    // 프로필 세션 없으면 Google Auth에서 가족 ID 조회
+    if (!familyId) {
+      familyId = await getFamilyIdFromAuthUser(request);
+    }
+
+    if (!familyId) {
+      return NextResponse.json(
+        { error: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    // 해당 가족의 프로필만 조회 (pin_code 제외)
     let query = supabase
       .from('profiles')
-      .select('id, name, role, age, avatar_url, created_at')
+      .select('id, name, role, age, avatar_url, pin_code, family_id, created_at')
+      .eq('family_id', familyId)
       .order('created_at', { ascending: true });
 
-    // 역할 필터링
     if (role) {
       query = query.eq('role', role);
     }
@@ -40,20 +59,90 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 로그인하지 않은 경우 최소한의 정보만 반환
-    if (!session) {
-      const publicProfiles = (profiles || []).map((p: { id: string; name: string; role: string; avatar_url: string | null }) => ({
-        id: p.id,
-        name: p.name,
-        role: p.role,
-        avatar_url: p.avatar_url,
-      }));
-      return NextResponse.json({ profiles: publicProfiles });
-    }
+    // pin_code는 해시값 대신 설정 여부만 반환
+    const safeProfiles = (profiles || []).map((p: {
+      id: string;
+      name: string;
+      role: string;
+      age: number | null;
+      avatar_url: string | null;
+      pin_code: string | null;
+      family_id: string;
+      created_at: string;
+    }) => ({
+      id: p.id,
+      name: p.name,
+      role: p.role,
+      age: p.age,
+      avatar_url: p.avatar_url,
+      has_pin: !!p.pin_code,
+      family_id: p.family_id,
+      created_at: p.created_at,
+    }));
 
-    // 로그인한 경우 전체 정보 반환
-    return NextResponse.json({ profiles: profiles || [] });
+    return NextResponse.json({ profiles: safeProfiles });
   } catch (error) {
     return handleApiError(error, 'GET /api/profiles');
+  }
+}
+
+/**
+ * POST /api/profiles
+ * 새 프로필 생성 (부모만 가능)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const session = await withParent(request);
+    if (isErrorResponse(session)) return session;
+
+    const body = await request.json();
+    const { name, role, age, pin } = body;
+
+    if (!name || !role) {
+      return NextResponse.json(
+        { error: '이름과 역할은 필수입니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (role !== 'parent' && role !== 'child') {
+      return NextResponse.json(
+        { error: '역할은 parent 또는 child여야 합니다.' },
+        { status: 400 }
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient() as any;
+
+    // PIN 해싱 (제공된 경우)
+    let hashedPin: string | null = null;
+    if (pin) {
+      hashedPin = await hashPin(pin);
+    }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .insert({
+        name,
+        role,
+        age: age ?? null,
+        pin_code: hashedPin,
+        family_id: session.familyId,
+      })
+      .select('id, name, role, age, avatar_url, family_id, created_at')
+      .single();
+
+    if (error) {
+      console.error('Error creating profile:', error);
+      return NextResponse.json(
+        { error: '프로필 생성에 실패했습니다.' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ profile }, { status: 201 });
+  } catch (error) {
+    return handleApiError(error, 'POST /api/profiles');
   }
 }

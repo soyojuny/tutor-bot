@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { handleApiError } from '@/lib/api/helpers';
+import { withAuth, isErrorResponse, handleApiError, assertProfileInFamily } from '@/lib/api/helpers';
 import { DailyStreakRow, SupabaseQueryResult } from '@/lib/supabase/types';
 import { updateStreak } from '@/lib/services/streaks';
 
@@ -10,7 +10,19 @@ export async function GET(
   { params }: { params: Promise<{ profileId: string }> }
 ) {
   try {
+    const session = await withAuth(request);
+    if (isErrorResponse(session)) return session;
+
     const { profileId } = await params;
+
+    // 가족 범위 확인
+    if (!await assertProfileInFamily(profileId, session.familyId)) {
+      return NextResponse.json(
+        { error: '접근 권한이 없습니다.' },
+        { status: 403 }
+      );
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
 
