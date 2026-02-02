@@ -26,6 +26,9 @@ export function useBookDiscussion() {
   const [hasAiResponded, setHasAiResponded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const transcriptsRef = useRef<TranscriptEntry[]>([]);
+  const partialUserTextRef = useRef('');
+
   const sessionRef = useRef<Session | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -166,7 +169,9 @@ export function useBookDiscussion() {
         updateStatus('connecting');
         setError(null);
         setTranscripts([]);
+        transcriptsRef.current = [];
         setPartialUserText('');
+        partialUserTextRef.current = '';
         setPartialAiText('');
         setIsUserSpeaking(false);
         setHasAiResponded(false);
@@ -245,11 +250,13 @@ export function useBookDiscussion() {
 
                   if (inputT.finished) {
                     const finalText = inputT.text;
-                    setTranscripts((prev) => [
-                      ...prev,
-                      { role: 'user', text: finalText },
-                    ]);
+                    setTranscripts((prev) => {
+                      const next = [...prev, { role: 'user' as const, text: finalText }];
+                      transcriptsRef.current = next;
+                      return next;
+                    });
                     setPartialUserText('');
+                    partialUserTextRef.current = '';
                     setIsUserSpeaking(false);
                     if (userSpeakingTimeoutRef.current) {
                       clearTimeout(userSpeakingTimeoutRef.current);
@@ -257,6 +264,7 @@ export function useBookDiscussion() {
                     }
                   } else {
                     setPartialUserText(inputT.text);
+                    partialUserTextRef.current = inputT.text;
                   }
                 }
 
@@ -265,10 +273,11 @@ export function useBookDiscussion() {
                 if (outputT?.text) {
                   if (outputT.finished) {
                     const finalText = outputT.text;
-                    setTranscripts((prev) => [
-                      ...prev,
-                      { role: 'ai', text: finalText },
-                    ]);
+                    setTranscripts((prev) => {
+                      const next = [...prev, { role: 'ai' as const, text: finalText }];
+                      transcriptsRef.current = next;
+                      return next;
+                    });
                     setPartialAiText('');
                   } else {
                     setPartialAiText(outputT.text);
@@ -433,10 +442,17 @@ export function useBookDiscussion() {
     async (bookTitle: string) => {
       setIsSaving(true);
       try {
+        // Use refs to get the latest values, avoiding stale closure
+        const latestTranscripts = [...transcriptsRef.current];
+        const remainingPartial = partialUserTextRef.current.trim();
+        if (remainingPartial) {
+          latestTranscripts.push({ role: 'user', text: remainingPartial });
+        }
+
         const res = await fetch('/api/book-discussions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bookTitle, transcripts }),
+          body: JSON.stringify({ bookTitle, transcripts: latestTranscripts }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -448,7 +464,7 @@ export function useBookDiscussion() {
         setIsSaving(false);
       }
     },
-    [transcripts]
+    []
   );
 
   // Cleanup on unmount

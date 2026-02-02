@@ -487,8 +487,8 @@ export default function BookDiscussionPage() {
         </div>
         <Button
           onClick={async () => {
-            stopSession();
             await saveDiscussion(bookTitle);
+            stopSession();
           }}
           variant="danger"
           size="sm"
