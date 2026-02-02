@@ -27,6 +27,7 @@ export async function POST(
       .from('activity_completions')
       .select('*')
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .single();
 
     if (fetchError || !completionData) {
@@ -51,6 +52,7 @@ export async function POST(
       .from('activities')
       .select('id, title, points_value')
       .eq('id', completion.activity_id)
+      .eq('family_id', session.familyId)
       .single();
 
     if (activityError || !activityData) {
@@ -63,12 +65,13 @@ export async function POST(
     const activity = activityData;
 
     // 현재 포인트 잔액 조회
-    const previousBalance = await getCurrentBalance(supabase, completion.profile_id);
+    const previousBalance = await getCurrentBalance(supabase, completion.profile_id, session.familyId);
     const newBalance = previousBalance + activity.points_value;
 
     // 1. 포인트 원장에 거래 기록 추가
     const { error: ledgerError } = await addPointsTransaction(supabase, {
       profileId: completion.profile_id,
+      familyId: session.familyId,
       completionId: id,
       pointsChange: activity.points_value,
       balanceAfter: newBalance,
@@ -95,6 +98,7 @@ export async function POST(
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .select()
       .single();
 
@@ -108,7 +112,7 @@ export async function POST(
 
     // 3. 연속 달성일 업데이트
     try {
-      await updateStreak(supabase, completion.profile_id);
+      await updateStreak(supabase, completion.profile_id, session.familyId);
     } catch (streakError) {
       console.error('Error updating streak (non-critical):', streakError);
     }

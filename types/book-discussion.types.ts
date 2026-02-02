@@ -28,6 +28,7 @@ export interface BookCoverInfo {
 
 export interface BookDiscussionRecord {
   id: string;
+  family_id: string;
   profile_id: string;
   book_title: string;
   summary: string | null;

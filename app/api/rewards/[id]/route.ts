@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { handleApiError } from '@/lib/api/helpers';
+import { handleApiError, withParent, isErrorResponse } from '@/lib/api/helpers';
 import { UpdateRewardInput } from '@/types';
 import { RewardRow, SupabaseQueryResult } from '@/lib/supabase/types';
 
@@ -13,6 +13,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await withParent(request);
+    if (isErrorResponse(session)) return session;
+
     const { id } = await params;
     const body = await request.json();
     const input = body as UpdateRewardInput;
@@ -25,6 +28,7 @@ export async function PATCH(
       .from('rewards')
       .select('*')
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .single();
 
     if (fetchError || !existingReward) {
@@ -51,6 +55,7 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .select()
       .single();
 
@@ -77,6 +82,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await withParent(request);
+    if (isErrorResponse(session)) return session;
+
     const { id } = await params;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
@@ -86,6 +94,7 @@ export async function DELETE(
       .from('rewards')
       .select('id')
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .single();
 
     if (fetchError || !existingReward) {
@@ -99,7 +108,8 @@ export async function DELETE(
     const { error } = await supabase
       .from('rewards')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('family_id', session.familyId);
 
     if (error) {
       console.error('Error deleting reward:', error);

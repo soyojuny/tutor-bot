@@ -5,7 +5,7 @@ import { DailyStreakRow, SupabaseQueryResult } from '@/lib/supabase/types';
  * 오늘 이미 업데이트된 경우 기존 데이터를 반환합니다.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function updateStreak(supabase: any, profileId: string, today?: string): Promise<DailyStreakRow | null> {
+export async function updateStreak(supabase: any, profileId: string, familyId: string, today?: string): Promise<DailyStreakRow | null> {
   const todayStr = today ?? new Date().toISOString().split('T')[0];
 
   // 기존 연속 달성일 조회
@@ -13,6 +13,7 @@ export async function updateStreak(supabase: any, profileId: string, today?: str
     .from('daily_streaks')
     .select('*')
     .eq('profile_id', profileId)
+    .eq('family_id', familyId)
     .single();
 
   if (fetchError && fetchError.code !== 'PGRST116') {
@@ -50,6 +51,7 @@ export async function updateStreak(supabase: any, profileId: string, today?: str
         updated_at: new Date().toISOString(),
       })
       .eq('profile_id', profileId)
+      .eq('family_id', familyId)
       .select()
       .single();
 
@@ -61,6 +63,7 @@ export async function updateStreak(supabase: any, profileId: string, today?: str
       .from('daily_streaks')
       .insert({
         profile_id: profileId,
+        family_id: familyId,
         streak_count: 1,
         longest_streak: 1,
         last_activity_date: todayStr,

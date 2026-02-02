@@ -60,36 +60,6 @@ export function handleApiError(error: unknown, context: string): NextResponse {
 }
 
 /**
- * 프로필이 특정 가족에 속하는지 확인
- */
-export async function assertProfileInFamily(profileId: string, familyId: string): Promise<boolean> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminClient() as any;
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('id', profileId)
-    .eq('family_id', familyId)
-    .single();
-
-  return !error && !!data;
-}
-
-/**
- * 가족에 속한 모든 프로필 ID 조회
- */
-export async function getFamilyProfileIds(familyId: string): Promise<string[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminClient() as any;
-  const { data } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('family_id', familyId);
-
-  return (data || []).map((p: { id: string }) => p.id);
-}
-
-/**
  * Supabase Auth 사용자의 가족 ID 조회
  */
 export async function getFamilyIdFromAuthUser(request: Request): Promise<string | null> {

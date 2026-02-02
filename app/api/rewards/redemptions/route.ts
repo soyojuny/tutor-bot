@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { RewardRow, RedemptionRow, SupabaseQueryResult } from '@/lib/supabase/types';
-import { withAuth, withChild, isErrorResponse, handleApiError, assertProfileInFamily } from '@/lib/api/helpers';
+import { withAuth, withChild, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 import { getCurrentBalance, addPointsTransaction } from '@/lib/services/points';
 
 /**
@@ -26,16 +26,10 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('reward_redemptions')
       .select('*, rewards(*)')
+      .eq('family_id', session.familyId)
       .order('redeemed_at', { ascending: false });
 
     if (profileId) {
-      // 가족 범위 확인
-      if (!await assertProfileInFamily(profileId, session.familyId)) {
-        return NextResponse.json(
-          { error: '접근 권한이 없습니다.' },
-          { status: 403 }
-        );
-      }
       query = query.eq('profile_id', profileId);
     }
     if (status) {
@@ -85,6 +79,7 @@ export async function POST(request: NextRequest) {
       .from('rewards')
       .select('*')
       .eq('id', reward_id)
+      .eq('family_id', session.familyId)
       .single();
 
     if (rewardError || !reward) {
@@ -102,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 현재 포인트 잔액 조회 (세션 ID 사용)
-    const currentBalance = await getCurrentBalance(supabase, session.userId);
+    const currentBalance = await getCurrentBalance(supabase, session.userId, session.familyId);
 
     // 포인트 충분한지 확인
     if (currentBalance < reward.points_cost) {
@@ -118,6 +113,7 @@ export async function POST(request: NextRequest) {
     // 1. 포인트 원장에 거래 기록 추가 (차감) - 세션 ID 사용
     const { error: ledgerError } = await addPointsTransaction(supabase, {
       profileId: session.userId,
+      familyId: session.familyId,
       rewardId: reward_id,
       pointsChange: -reward.points_cost,
       balanceAfter: newBalance,
@@ -139,6 +135,7 @@ export async function POST(request: NextRequest) {
       .insert({
         reward_id,
         profile_id: session.userId,
+        family_id: session.familyId,
         points_spent: reward.points_cost,
         status: 'pending',
       })

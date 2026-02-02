@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { withParent, isErrorResponse, handleApiError, assertProfileInFamily } from '@/lib/api/helpers';
+import { withParent, isErrorResponse, handleApiError } from '@/lib/api/helpers';
 import { hashPin } from '@/lib/utils/auth';
 
 /**
@@ -16,15 +16,6 @@ export async function PATCH(
     if (isErrorResponse(session)) return session;
 
     const { id } = await params;
-
-    // 가족 범위 확인
-    if (!await assertProfileInFamily(id, session.familyId)) {
-      return NextResponse.json(
-        { error: '접근 권한이 없습니다.' },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
     const { name, role, age, pin, remove_pin } = body;
 
@@ -59,6 +50,7 @@ export async function PATCH(
       .from('profiles')
       .update(updateData)
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .select('id, name, role, age, avatar_url, family_id, created_at, updated_at')
       .single();
 
@@ -98,21 +90,14 @@ export async function DELETE(
       );
     }
 
-    // 가족 범위 확인
-    if (!await assertProfileInFamily(id, session.familyId)) {
-      return NextResponse.json(
-        { error: '접근 권한이 없습니다.' },
-        { status: 403 }
-      );
-    }
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = createAdminClient() as any;
 
     const { error } = await supabase
       .from('profiles')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('family_id', session.familyId);
 
     if (error) {
       console.error('Error deleting profile:', error);

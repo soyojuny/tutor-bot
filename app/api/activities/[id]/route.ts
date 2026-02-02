@@ -29,6 +29,7 @@ export async function PATCH(
       .from('activities')
       .select('*')
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .single();
 
     if (fetchError || !existingActivityData) {
@@ -78,6 +79,7 @@ export async function PATCH(
       const { data: existingCompletion } = await supabase
         .from('activity_completions')
         .select('id')
+        .eq('family_id', session.familyId)
         .eq('activity_id', id)
         .eq('profile_id', session.userId)
         .eq('completed_date', today)
@@ -96,6 +98,7 @@ export async function PATCH(
         .insert({
           activity_id: id,
           profile_id: session.userId,
+          family_id: session.familyId,
           completed_date: today,
           status: 'completed',
         })
@@ -161,6 +164,7 @@ export async function PATCH(
       .from('activities')
       .update(updates)
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .select()
       .single();
 
@@ -199,6 +203,7 @@ export async function DELETE(
       .from('activities')
       .select('id')
       .eq('id', id)
+      .eq('family_id', session.familyId)
       .single();
 
     if (fetchError || !existingActivity) {
@@ -212,7 +217,8 @@ export async function DELETE(
     const { error } = await supabase
       .from('activities')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('family_id', session.familyId);
 
     if (error) {
       console.error('Error deleting activity:', error);

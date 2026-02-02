@@ -5,6 +5,7 @@ export type CompletionStatus = 'completed' | 'verified';
 
 export interface Activity {
   id: string;
+  family_id: string;
   title: string;
   description?: string;
   category: ActivityCategory;
@@ -39,6 +40,7 @@ export interface ActivityCompletionMetadata {
 // 활동 완료 기록
 export interface ActivityCompletion {
   id: string;
+  family_id: string;
   activity_id: string;
   profile_id: string;
   completed_date: string;

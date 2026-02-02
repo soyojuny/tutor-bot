@@ -5,11 +5,12 @@ import { PointsLedgerRow, SupabaseQueryResult } from '@/lib/supabase/types';
  * points_ledger에서 가장 최근 레코드의 balance_after를 반환합니다.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getCurrentBalance(supabase: any, profileId: string): Promise<number> {
+export async function getCurrentBalance(supabase: any, profileId: string, familyId: string): Promise<number> {
   const { data: latestTransaction }: SupabaseQueryResult<PointsLedgerRow> = await supabase
     .from('points_ledger')
     .select('balance_after')
     .eq('profile_id', profileId)
+    .eq('family_id', familyId)
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
@@ -23,6 +24,7 @@ export async function getCurrentBalance(supabase: any, profileId: string): Promi
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function addPointsTransaction(supabase: any, params: {
   profileId: string;
+  familyId: string;
   pointsChange: number;
   balanceAfter: number;
   transactionType: 'earned' | 'spent' | 'adjusted' | 'bonus';
@@ -34,6 +36,7 @@ export async function addPointsTransaction(supabase: any, params: {
     .from('points_ledger')
     .insert({
       profile_id: params.profileId,
+      family_id: params.familyId,
       completion_id: params.completionId ?? null,
       reward_id: params.rewardId ?? null,
       points_change: params.pointsChange,
