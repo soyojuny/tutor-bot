@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality, EndSensitivity } from '@google/genai';
+import { GoogleGenAI, Modality, EndSensitivity, StartSensitivity } from '@google/genai';
 import { BookCoverInfo } from '@/types';
 
 const GEMINI_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
@@ -117,7 +117,7 @@ export async function generateDiscussionSummary(
           role: 'user',
           parts: [
             {
-              text: `아이가 "${bookTitle}"이라는 책에 대해 독서 토론을 했습니다. 아래는 아이가 한 말들입니다.\n\n${userUtterances}\n\n위 내용을 바탕으로 아이가 이 책에 대해 어떤 이야기를 나눴는지 한 문장으로 요약해주세요. 부모가 읽을 용도이며, 간결하고 따뜻한 톤으로 작성해주세요.`,
+              text: `아이가 "${bookTitle}"이라는 책에 대해 독서 토론을 했습니다. 아래는 아이가 한 말들입니다.\n\n${userUtterances}\n\n위 내용을 바탕으로 아이가 이 책에 대해 어떤 이야기를 나눴는지 정리해주세요.\n\n작성 규칙:\n- 아이가 언급한 주요 내용, 의견, 느낌을 구체적으로 포함해주세요.\n- "아이가 ~라고 말했습니다" 형태로 아이의 실제 발언을 반영해주세요.\n- 3~5문장으로, 부모가 빠르게 읽을 수 있도록 간결하게 유지해주세요.\n- 부모가 읽을 용도이며, 따뜻하지만 구체적인 톤으로 작성해주세요.`,
             },
           ],
         },
@@ -151,8 +151,10 @@ export async function createLiveSessionToken(
           outputAudioTranscription: {},
           realtimeInputConfig: {
             automaticActivityDetection: {
+              startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_LOW,
               endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH,
-              silenceDurationMs: 1000,
+              prefixPaddingMs: 300,
+              silenceDurationMs: 300,
             },
           },
         },

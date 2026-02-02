@@ -360,7 +360,7 @@ export function useBookDiscussion() {
             sum += float32Data[i] * float32Data[i];
           }
           const rms = Math.sqrt(sum / float32Data.length);
-          if (rms > 0.01) {
+          if (rms > 0.015) {
             setIsUserSpeaking(true);
             if (userSpeakingTimeoutRef.current) {
               clearTimeout(userSpeakingTimeoutRef.current);
