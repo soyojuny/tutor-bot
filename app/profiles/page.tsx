@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { createClient } from '@/lib/supabase/client';
 import { Plus, X } from 'lucide-react';
+import ProfileAvatar from '@/components/shared/ProfileAvatar';
+import AvatarPicker from '@/components/shared/AvatarPicker';
 
 interface ProfileItem {
   id: string;
@@ -18,9 +20,9 @@ interface ProfileItem {
 
 interface NewProfileForm {
   name: string;
-  role: 'parent' | 'child';
   age: string;
   pin: string;
+  avatar_url: string;
 }
 
 export default function ProfilesPage() {
@@ -31,11 +33,12 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [newProfileForm, setNewProfileForm] = useState<NewProfileForm>({
     name: '',
-    role: 'child',
     age: '',
     pin: '',
+    avatar_url: '',
   });
   const router = useRouter();
   const { selectProfile, isAuthenticated, fullLogout } = useAuthStore();
@@ -150,9 +153,10 @@ export default function ProfilesPage() {
         credentials: 'include',
         body: JSON.stringify({
           name: newProfileForm.name.trim(),
-          role: newProfileForm.role,
+          role: 'child',
           age: newProfileForm.age ? parseInt(newProfileForm.age) : null,
           pin: newProfileForm.pin || null,
+          avatar_url: newProfileForm.avatar_url || null,
         }),
       });
       const data = await response.json();
@@ -163,7 +167,7 @@ export default function ProfilesPage() {
 
       // Reset form and refresh profiles
       setIsCreating(false);
-      setNewProfileForm({ name: '', role: 'child', age: '', pin: '' });
+      setNewProfileForm({ name: '', age: '', pin: '', avatar_url: '' });
       await fetchProfiles();
     } catch (err) {
       setError(err instanceof Error ? err.message : '프로필 생성에 실패했습니다.');
@@ -194,12 +198,12 @@ export default function ProfilesPage() {
         {isCreating ? (
           <div className="bg-white rounded-lg shadow-lg p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-800">새 프로필 만들기</h2>
+              <h2 className="text-xl font-bold text-gray-800">아이 프로필 만들기</h2>
               <button
                 onClick={() => {
                   setIsCreating(false);
                   setError('');
-                  setNewProfileForm({ name: '', role: 'child', age: '', pin: '' });
+                  setNewProfileForm({ name: '', age: '', pin: '', avatar_url: '' });
                 }}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -208,6 +212,24 @@ export default function ProfilesPage() {
             </div>
 
             <form onSubmit={handleCreateProfile} className="space-y-4">
+              {/* 아바타 선택 */}
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setAvatarPickerOpen(true)}
+                  className="relative group"
+                >
+                  <ProfileAvatar
+                    avatarUrl={newProfileForm.avatar_url || null}
+                    role="child"
+                    size="lg"
+                  />
+                  <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="text-white text-xs font-medium">변경</span>
+                  </div>
+                </button>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   이름
@@ -224,50 +246,18 @@ export default function ProfilesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  역할
+                  나이 (선택)
                 </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNewProfileForm({ ...newProfileForm, role: 'parent' })}
-                    className={`py-3 px-4 rounded-lg border-2 text-center transition-all ${
-                      newProfileForm.role === 'parent'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 font-semibold'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    부모
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewProfileForm({ ...newProfileForm, role: 'child' })}
-                    className={`py-3 px-4 rounded-lg border-2 text-center transition-all ${
-                      newProfileForm.role === 'child'
-                        ? 'border-yellow-500 bg-yellow-50 text-yellow-700 font-semibold'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    아이
-                  </button>
-                </div>
+                <input
+                  type="number"
+                  min="1"
+                  max="19"
+                  value={newProfileForm.age}
+                  onChange={(e) => setNewProfileForm({ ...newProfileForm, age: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                  placeholder="나이"
+                />
               </div>
-
-              {newProfileForm.role === 'child' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    나이 (선택)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="19"
-                    value={newProfileForm.age}
-                    onChange={(e) => setNewProfileForm({ ...newProfileForm, age: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                    placeholder="나이"
-                  />
-                </div>
-              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -296,6 +286,13 @@ export default function ProfilesPage() {
                 {createLoading ? '생성 중...' : '프로필 만들기'}
               </button>
             </form>
+
+            <AvatarPicker
+              currentAvatar={newProfileForm.avatar_url || null}
+              onSelect={(url) => setNewProfileForm({ ...newProfileForm, avatar_url: url })}
+              isOpen={avatarPickerOpen}
+              onClose={() => setAvatarPickerOpen(false)}
+            />
           </div>
         ) : !selectedProfile ? (
           <div className="space-y-4">
@@ -320,10 +317,12 @@ export default function ProfilesPage() {
                     onClick={() => handleProfileSelect(profile)}
                     className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-all hover:scale-105 text-center"
                   >
-                    <div className={`w-20 h-20 mx-auto mb-3 rounded-full bg-gradient-to-br flex items-center justify-center text-4xl ${
-                      profile.role === 'parent' ? 'from-blue-100 to-blue-200' : 'from-yellow-100 to-yellow-200'
-                    }`}>
-                      {profile.role === 'parent' ? '👨' : '👦'}
+                    <div className="flex justify-center mb-3">
+                      <ProfileAvatar
+                        avatarUrl={profile.avatar_url}
+                        role={profile.role}
+                        size="lg"
+                      />
                     </div>
                     <div className="font-semibold text-gray-800 text-lg">
                       {profile.name}
@@ -381,8 +380,12 @@ export default function ProfilesPage() {
             </button>
 
             <div className="text-center mb-6">
-              <div className="text-5xl mb-2">
-                {selectedProfile.role === 'parent' ? '👨' : '👦'}
+              <div className="flex justify-center mb-2">
+                <ProfileAvatar
+                  avatarUrl={selectedProfile.avatar_url}
+                  role={selectedProfile.role}
+                  size="lg"
+                />
               </div>
               <h2 className="text-2xl font-bold text-gray-800">
                 {selectedProfile.name}

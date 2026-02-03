@@ -11,11 +11,12 @@ import Card from '@/components/shared/Card';
 import PointsDisplay from '@/components/shared/PointsDisplay';
 import ActivityStatsChart from '@/components/dashboard/ActivityStatsChart';
 import ActivityTrendChart from '@/components/dashboard/ActivityTrendChart';
-import { Plus, ClipboardList, Gift, BarChart3, BookOpen, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import ProfileAvatar from '@/components/shared/ProfileAvatar';
+import { Plus, ClipboardList, Gift, BarChart3, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ParentDashboard() {
-  const { user, switchProfile, fullLogout } = useAuth();
+  const { user, switchProfile } = useAuth();
   const router = useRouter();
   const [childProfiles, setChildProfiles] = useState<Profile[]>([]);
   const [childBalances, setChildBalances] = useState<Record<string, number>>({});
@@ -115,9 +116,16 @@ export default function ParentDashboard() {
     <div className="container mx-auto p-8">
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">부모 대시보드</h1>
-            <p className="text-gray-600 mt-1">안녕하세요, {user?.name}님!</p>
+          <div className="flex items-center gap-4">
+            <ProfileAvatar
+              avatarUrl={user?.avatar_url}
+              role="parent"
+              size="lg"
+            />
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">부모 대시보드</h1>
+              <p className="text-gray-600 mt-1">안녕하세요, {user?.name}님!</p>
+            </div>
           </div>
           <div className="flex gap-2">
             <button
@@ -125,12 +133,6 @@ export default function ParentDashboard() {
               className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
             >
               프로필 전환
-            </button>
-            <button
-              onClick={fullLogout}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
-            >
-              로그아웃
             </button>
           </div>
         </div>

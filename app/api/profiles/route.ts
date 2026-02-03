@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, role, age, pin } = body;
+    const { name, role, age, pin, avatar_url } = body;
 
     if (!name || !role) {
       return NextResponse.json(
@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
         role,
         age: age ?? null,
         pin_code: hashedPin,
+        avatar_url: avatar_url ?? null,
         family_id: familyId,
       })
       .select('id, name, role, age, avatar_url, family_id, created_at')

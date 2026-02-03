@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { usePointsStore } from '@/store/pointsStore';
@@ -10,15 +10,18 @@ import Button from '@/components/shared/Button';
 import Card from '@/components/shared/Card';
 import PointsDisplay from '@/components/shared/PointsDisplay';
 import StreakDisplay from '@/components/child/StreakDisplay';
-import { ClipboardList, Gift, Trophy, CheckCircle2, Clock, BookOpen } from 'lucide-react';
+import ProfileAvatar from '@/components/shared/ProfileAvatar';
+import AvatarPicker from '@/components/shared/AvatarPicker';
+import { ClipboardList, Gift, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ChildDashboard() {
-  const { user, switchProfile, fullLogout } = useAuth();
+  const { user, switchProfile } = useAuth();
   const router = useRouter();
   const { balance, fetchBalance } = usePointsStore();
   const { activities, fetchActivities } = useActivityStore();
   const { redemptions, fetchRedemptions, rewards, fetchRewards } = useRewardStore();
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -84,15 +87,48 @@ export default function ChildDashboard() {
     return rewards.find((r) => r.id === rewardId);
   }
 
+  async function handleAvatarSelect(avatarUrl: string) {
+    if (!user) return;
+    try {
+      const response = await fetch(`/api/profiles/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ avatar_url: avatarUrl }),
+      });
+      if (response.ok) {
+        // Refresh session to pick up the new avatar
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Error updating avatar:', err);
+    }
+  }
+
   return (
     <div className="container mx-auto p-8">
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-800">
-              안녕, {user?.name}! 👋
-            </h1>
-            <p className="text-gray-600 mt-2 text-lg">오늘도 열심히 해보자!</p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setAvatarPickerOpen(true)}
+              className="relative group flex-shrink-0"
+            >
+              <ProfileAvatar
+                avatarUrl={user?.avatar_url}
+                role="child"
+                size="lg"
+              />
+              <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-white text-xs font-medium">변경</span>
+              </div>
+            </button>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-800">
+                안녕, {user?.name}!
+              </h1>
+              <p className="text-gray-600 mt-2 text-lg">오늘도 열심히 해보자!</p>
+            </div>
           </div>
           <div className="flex gap-2">
             <button
@@ -100,12 +136,6 @@ export default function ChildDashboard() {
               className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
             >
               프로필 전환
-            </button>
-            <button
-              onClick={fullLogout}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
-            >
-              로그아웃
             </button>
           </div>
         </div>
@@ -191,6 +221,13 @@ export default function ChildDashboard() {
         </Card>
 
       </div>
+
+      <AvatarPicker
+        currentAvatar={user?.avatar_url}
+        onSelect={handleAvatarSelect}
+        isOpen={avatarPickerOpen}
+        onClose={() => setAvatarPickerOpen(false)}
+      />
     </div>
   );
 }

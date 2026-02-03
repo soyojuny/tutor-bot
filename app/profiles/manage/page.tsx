@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Pencil, Trash2, Plus, ArrowLeft } from 'lucide-react';
+import ProfileAvatar from '@/components/shared/ProfileAvatar';
+import AvatarPicker from '@/components/shared/AvatarPicker';
 
 interface ProfileItem {
   id: string;
@@ -21,6 +23,7 @@ interface ProfileForm {
   age: string;
   pin: string;
   remove_pin: boolean;
+  avatar_url: string;
 }
 
 const emptyForm: ProfileForm = {
@@ -29,6 +32,7 @@ const emptyForm: ProfileForm = {
   age: '',
   pin: '',
   remove_pin: false,
+  avatar_url: '',
 };
 
 export default function ProfileManagePage() {
@@ -39,6 +43,7 @@ export default function ProfileManagePage() {
   const [form, setForm] = useState<ProfileForm>(emptyForm);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const router = useRouter();
   const { isAuthenticated, isParent } = useAuth();
 
@@ -73,6 +78,7 @@ export default function ProfileManagePage() {
       age: profile.age?.toString() || '',
       pin: '',
       remove_pin: false,
+      avatar_url: profile.avatar_url || '',
     });
     setError('');
   }
@@ -101,15 +107,16 @@ export default function ProfileManagePage() {
     setSaving(true);
     try {
       if (isCreating) {
-        // 새 프로필 생성
+        // 새 프로필 생성 (아이만)
         const response = await fetch('/api/profiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: form.name.trim(),
-            role: form.role,
+            role: 'child',
             age: form.age ? parseInt(form.age) : null,
             pin: form.pin || undefined,
+            avatar_url: form.avatar_url || null,
           }),
           credentials: 'include',
         });
@@ -123,8 +130,8 @@ export default function ProfileManagePage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const body: Record<string, any> = {
           name: form.name.trim(),
-          role: form.role,
           age: form.age ? parseInt(form.age) : null,
+          avatar_url: form.avatar_url || null,
         };
         if (form.pin) body.pin = form.pin;
         if (form.remove_pin) body.remove_pin = true;
@@ -208,9 +215,11 @@ export default function ProfileManagePage() {
               className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
-                <div className="text-3xl">
-                  {profile.role === 'parent' ? '👨' : '👦'}
-                </div>
+                <ProfileAvatar
+                  avatarUrl={profile.avatar_url}
+                  role={profile.role}
+                  size="sm"
+                />
                 <div>
                   <div className="font-semibold text-gray-800">{profile.name}</div>
                   <div className="text-sm text-gray-500">
@@ -245,7 +254,7 @@ export default function ProfileManagePage() {
             className="w-full bg-white rounded-lg shadow-sm p-4 flex items-center justify-center gap-2 text-blue-500 hover:bg-blue-50 transition-colors font-medium"
           >
             <Plus className="w-5 h-5" />
-            프로필 추가
+            아이 프로필 추가
           </button>
         )}
 
@@ -253,10 +262,28 @@ export default function ProfileManagePage() {
         {(isCreating || editingId) && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">
-              {isCreating ? '프로필 추가' : '프로필 수정'}
+              {isCreating ? '아이 프로필 추가' : '프로필 수정'}
             </h2>
 
             <div className="space-y-4">
+              {/* 아바타 선택 */}
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setAvatarPickerOpen(true)}
+                  className="relative group"
+                >
+                  <ProfileAvatar
+                    avatarUrl={form.avatar_url || null}
+                    role={form.role}
+                    size="lg"
+                  />
+                  <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="text-white text-xs font-medium">변경</span>
+                  </div>
+                </button>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   이름
@@ -270,19 +297,17 @@ export default function ProfileManagePage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  역할
-                </label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value as 'parent' | 'child' })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                >
-                  <option value="child">아이</option>
-                  <option value="parent">부모</option>
-                </select>
-              </div>
+              {/* 역할 표시 (읽기 전용) */}
+              {editingId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    역할
+                  </label>
+                  <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600">
+                    {form.role === 'parent' ? '부모' : '아이'}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -348,6 +373,13 @@ export default function ProfileManagePage() {
                 {saving ? '저장중...' : '저장'}
               </button>
             </div>
+
+            <AvatarPicker
+              currentAvatar={form.avatar_url || null}
+              onSelect={(url) => setForm({ ...form, avatar_url: url })}
+              isOpen={avatarPickerOpen}
+              onClose={() => setAvatarPickerOpen(false)}
+            />
           </div>
         )}
       </div>

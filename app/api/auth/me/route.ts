@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth/session';
+import { getSessionFromRequest, getSupabaseUserFromRequest } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
  * GET /api/auth/me
  * 현재 로그인된 사용자 정보 조회 (familyId 포함)
+ * JWT와 Google 세션 모두 검증
  */
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +16,18 @@ export async function GET(request: NextRequest) {
         { error: '로그인이 필요합니다.', user: null },
         { status: 401 }
       );
+    }
+
+    // Google 세션 유효성 확인
+    const supabaseUser = await getSupabaseUserFromRequest(request);
+    if (!supabaseUser) {
+      // Google 세션 만료 → 프로필 세션도 무효화
+      const response = NextResponse.json(
+        { error: 'Google 세션이 만료되었습니다. 다시 로그인해주세요.', user: null },
+        { status: 401 }
+      );
+      response.cookies.set('tutor-session', '', { maxAge: 0, path: '/' });
+      return response;
     }
 
     // 최신 프로필 정보 조회
