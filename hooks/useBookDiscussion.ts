@@ -3,6 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, Session, LiveServerMessage } from '@google/genai';
 import type { MicState, AudioDebugInfo } from '@/components/child/AudioLevelMeter';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useSettingsStore } from '@/store/settingsStore';
 
 type ConnectionStatus =
   | 'idle'
@@ -16,15 +18,19 @@ export interface TranscriptEntry {
   text: string;
 }
 
-const VAD_THRESHOLD = 0.015;
 const MAX_RMS_FOR_NORMALIZATION = 0.1;
 
 export function useBookDiscussion() {
+  // Get VAD threshold from settings store
+  const vadThreshold = useSettingsStore((state) => state.vadThreshold);
   const [status, setStatus] = useState<ConnectionStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
-  const [partialUserText, setPartialUserText] = useState('');
-  const [partialAiText, setPartialAiText] = useState('');
+  const [rawPartialUserText, setRawPartialUserText] = useState('');
+  const [rawPartialAiText, setRawPartialAiText] = useState('');
+  // 디바운싱을 적용하여 텍스트 깜빡임 방지
+  const partialUserText = useDebounce(rawPartialUserText, 100);
+  const partialAiText = useDebounce(rawPartialAiText, 100);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [hasAiResponded, setHasAiResponded] = useState(false);
@@ -41,6 +47,12 @@ export function useBookDiscussion() {
   const [micState, setMicState] = useState<MicState>('waiting');
   const chunksSentRef = useRef(0);
   const lastDebugUpdateRef = useRef(0);
+  const vadThresholdRef = useRef(vadThreshold);
+
+  // Keep vadThresholdRef in sync with the store value
+  useEffect(() => {
+    vadThresholdRef.current = vadThreshold;
+  }, [vadThreshold]);
 
   const transcriptsRef = useRef<TranscriptEntry[]>([]);
   const partialUserTextRef = useRef('');
@@ -188,9 +200,9 @@ export function useBookDiscussion() {
         setError(null);
         setTranscripts([]);
         transcriptsRef.current = [];
-        setPartialUserText('');
+        setRawPartialUserText('');
         partialUserTextRef.current = '';
-        setPartialAiText('');
+        setRawPartialAiText('');
         setIsUserSpeaking(false);
         setHasAiResponded(false);
         firstResponseDoneRef.current = false;
@@ -288,7 +300,7 @@ export function useBookDiscussion() {
                       transcriptsRef.current = next;
                       return next;
                     });
-                    setPartialUserText('');
+                    setRawPartialUserText('');
                     partialUserTextRef.current = '';
                     setIsUserSpeaking(false);
                     if (userSpeakingTimeoutRef.current) {
@@ -296,7 +308,7 @@ export function useBookDiscussion() {
                       userSpeakingTimeoutRef.current = null;
                     }
                   } else {
-                    setPartialUserText(inputT.text);
+                    setRawPartialUserText(inputT.text);
                     partialUserTextRef.current = inputT.text;
                   }
                 }
@@ -311,9 +323,9 @@ export function useBookDiscussion() {
                       transcriptsRef.current = next;
                       return next;
                     });
-                    setPartialAiText('');
+                    setRawPartialAiText('');
                   } else {
-                    setPartialAiText(outputT.text);
+                    setRawPartialAiText(outputT.text);
                   }
                 }
               },
@@ -401,7 +413,7 @@ export function useBookDiscussion() {
             sum += float32Data[i] * float32Data[i];
           }
           const rms = Math.sqrt(sum / float32Data.length);
-          const isAboveThreshold = rms > VAD_THRESHOLD;
+          const isAboveThreshold = rms > vadThresholdRef.current;
           const normalizedLevel = Math.min((rms / MAX_RMS_FOR_NORMALIZATION) * 100, 100);
 
           // Update debug info with throttling (every 50ms)
@@ -493,8 +505,8 @@ export function useBookDiscussion() {
     updateStatus('disconnecting');
     cleanup();
     updateStatus('idle');
-    setPartialUserText('');
-    setPartialAiText('');
+    setRawPartialUserText('');
+    setRawPartialAiText('');
     setIsAiSpeaking(false);
     setIsUserSpeaking(false);
     if (userSpeakingTimeoutRef.current) {
@@ -562,7 +574,7 @@ export function useBookDiscussion() {
     // Audio debug info
     audioDebugInfo,
     micState,
-    vadThreshold: VAD_THRESHOLD,
+    vadThreshold,
     startSession,
     stopSession,
     resetError,

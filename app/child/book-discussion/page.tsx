@@ -8,6 +8,7 @@ import Card from '@/components/shared/Card';
 import Button from '@/components/shared/Button';
 import Input from '@/components/shared/Input';
 import AudioLevelMeter from '@/components/child/AudioLevelMeter';
+import VadThresholdSlider from '@/components/child/VadThresholdSlider';
 import {
   BookOpen,
   Mic,
@@ -512,13 +513,14 @@ export default function BookDiscussionPage() {
       </div>
 
       {/* Audio Level Meter */}
-      <div className="mb-3">
+      <div className="mb-3 space-y-2">
         <AudioLevelMeter
           micState={micState}
           debugInfo={audioDebugInfo}
           vadThreshold={vadThreshold}
           showDebug={process.env.NODE_ENV === 'development'}
         />
+        <VadThresholdSlider />
       </div>
 
       {/* Voice Status Indicator (compact) */}
