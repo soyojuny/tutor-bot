@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import Card from '@/components/shared/Card';
 import Button from '@/components/shared/Button';
 import Input from '@/components/shared/Input';
+import AudioLevelMeter from '@/components/child/AudioLevelMeter';
 import {
   BookOpen,
   Mic,
@@ -42,6 +43,9 @@ export default function BookDiscussionPage() {
     isUserSpeaking,
     hasAiResponded,
     isSaving,
+    audioDebugInfo,
+    micState,
+    vadThreshold,
     startSession,
     stopSession,
     resetError,
@@ -505,6 +509,16 @@ export default function BookDiscussionPage() {
         >
           {isSaving ? '저장 중...' : '토론 끝내기'}
         </Button>
+      </div>
+
+      {/* Audio Level Meter */}
+      <div className="mb-3">
+        <AudioLevelMeter
+          micState={micState}
+          debugInfo={audioDebugInfo}
+          vadThreshold={vadThreshold}
+          showDebug={process.env.NODE_ENV === 'development'}
+        />
       </div>
 
       {/* Voice Status Indicator (compact) */}

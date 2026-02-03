@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, Session, LiveServerMessage } from '@google/genai';
+import type { MicState, AudioDebugInfo } from '@/components/child/AudioLevelMeter';
 
 type ConnectionStatus =
   | 'idle'
@@ -15,6 +16,9 @@ export interface TranscriptEntry {
   text: string;
 }
 
+const VAD_THRESHOLD = 0.015;
+const MAX_RMS_FOR_NORMALIZATION = 0.1;
+
 export function useBookDiscussion() {
   const [status, setStatus] = useState<ConnectionStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +29,18 @@ export function useBookDiscussion() {
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [hasAiResponded, setHasAiResponded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Audio debugging state
+  const [audioDebugInfo, setAudioDebugInfo] = useState<AudioDebugInfo>({
+    currentRms: 0,
+    normalizedLevel: 0,
+    isAboveThreshold: false,
+    totalChunksSent: 0,
+    isTransmitting: false,
+  });
+  const [micState, setMicState] = useState<MicState>('waiting');
+  const chunksSentRef = useRef(0);
+  const lastDebugUpdateRef = useRef(0);
 
   const transcriptsRef = useRef<TranscriptEntry[]>([]);
   const partialUserTextRef = useRef('');
@@ -79,6 +95,8 @@ export function useBookDiscussion() {
           isPlayingRef.current = false;
           setIsAiSpeaking(false);
           firstResponseDoneRef.current = true;
+          // Update mic state when AI finishes speaking
+          setMicState('ready');
         }
       };
     }
@@ -176,6 +194,18 @@ export function useBookDiscussion() {
         setIsUserSpeaking(false);
         setHasAiResponded(false);
         firstResponseDoneRef.current = false;
+
+        // Reset audio debug state
+        chunksSentRef.current = 0;
+        lastDebugUpdateRef.current = 0;
+        setMicState('waiting');
+        setAudioDebugInfo({
+          currentRms: 0,
+          normalizedLevel: 0,
+          isAboveThreshold: false,
+          totalChunksSent: 0,
+          isTransmitting: false,
+        });
 
         // 1. Fetch token & request mic in parallel (independent operations)
         const [tokenResult, stream] = await Promise.all([
@@ -365,22 +395,41 @@ export function useBookDiscussion() {
           if (!sessionRef.current) return;
           const float32Data = e.inputBuffer.getChannelData(0);
 
-          // Don't send mic audio until AI's first greeting is done
-          if (!firstResponseDoneRef.current) return;
-
           // Local voice activity detection for responsive UI
           let sum = 0;
           for (let i = 0; i < float32Data.length; i++) {
             sum += float32Data[i] * float32Data[i];
           }
           const rms = Math.sqrt(sum / float32Data.length);
-          if (rms > 0.015) {
+          const isAboveThreshold = rms > VAD_THRESHOLD;
+          const normalizedLevel = Math.min((rms / MAX_RMS_FOR_NORMALIZATION) * 100, 100);
+
+          // Update debug info with throttling (every 50ms)
+          const now = Date.now();
+          if (now - lastDebugUpdateRef.current > 50) {
+            lastDebugUpdateRef.current = now;
+            setAudioDebugInfo((prev) => ({
+              ...prev,
+              currentRms: rms,
+              normalizedLevel,
+              isAboveThreshold,
+              totalChunksSent: chunksSentRef.current,
+              isTransmitting: firstResponseDoneRef.current,
+            }));
+          }
+
+          // Don't send mic audio until AI's first greeting is done
+          if (!firstResponseDoneRef.current) return;
+
+          if (isAboveThreshold) {
             setIsUserSpeaking(true);
+            setMicState('transmitting');
             if (userSpeakingTimeoutRef.current) {
               clearTimeout(userSpeakingTimeoutRef.current);
             }
             userSpeakingTimeoutRef.current = setTimeout(() => {
               setIsUserSpeaking(false);
+              setMicState('ready');
             }, 1000);
           }
 
@@ -406,9 +455,11 @@ export function useBookDiscussion() {
                 mimeType: 'audio/pcm;rate=16000',
               },
             });
+            chunksSentRef.current++;
           } catch (err) {
             console.error('[BookDiscussion] sendRealtimeInput failed:', err);
             setError('음성 전송에 실패했습니다. 다시 시도해주세요.');
+            setMicState('error');
             updateStatus('error');
             cleanup();
           }
@@ -508,6 +559,10 @@ export function useBookDiscussion() {
     isUserSpeaking,
     hasAiResponded,
     isSaving,
+    // Audio debug info
+    audioDebugInfo,
+    micState,
+    vadThreshold: VAD_THRESHOLD,
     startSession,
     stopSession,
     resetError,
