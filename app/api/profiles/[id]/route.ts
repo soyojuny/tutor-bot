@@ -20,7 +20,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    // 아이가 자기 아바타만 변경하는 경우
+    // 아이가 자기 프로필 변경하는 경우 (avatar_url, PIN 변경 가능)
     if (session.role === 'child') {
       if (id !== session.userId) {
         return NextResponse.json(
@@ -29,30 +29,50 @@ export async function PATCH(
         );
       }
 
-      // 아이는 avatar_url만 변경 가능
-      const { avatar_url } = body;
-      if (avatar_url === undefined) {
+      // 아이는 avatar_url과 자신의 PIN 변경 가능
+      const { avatar_url, pin, remove_pin } = body;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updateData: Record<string, any> = {};
+
+      if (avatar_url !== undefined) {
+        updateData.avatar_url = avatar_url;
+      }
+
+      // PIN 처리
+      if (remove_pin) {
+        updateData.pin_code = null;
+      } else if (pin) {
+        if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+          return NextResponse.json(
+            { error: 'PIN은 4자리 숫자여야 합니다.' },
+            { status: 400 }
+          );
+        }
+        updateData.pin_code = await hashPin(pin);
+      }
+
+      if (Object.keys(updateData).length === 0) {
         return NextResponse.json(
           { error: '변경 가능한 필드가 없습니다.' },
           { status: 400 }
         );
       }
 
+      updateData.updated_at = new Date().toISOString();
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const supabase = createAdminClient() as any;
       const { data: profile, error } = await supabase
         .from('profiles')
-        .update({
-          avatar_url,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', id)
         .eq('family_id', session.familyId)
         .select('id, name, role, age, avatar_url, family_id, created_at, updated_at')
         .single();
 
       if (error) {
-        console.error('Error updating profile avatar:', error);
+        console.error('Error updating profile:', error);
         return NextResponse.json(
           { error: '프로필 수정에 실패했습니다.' },
           { status: 500 }

@@ -12,7 +12,7 @@ import PointsDisplay from '@/components/shared/PointsDisplay';
 import StreakDisplay from '@/components/child/StreakDisplay';
 import ProfileAvatar from '@/components/shared/ProfileAvatar';
 import AvatarPicker from '@/components/shared/AvatarPicker';
-import { ClipboardList, Gift, BookOpen } from 'lucide-react';
+import { ClipboardList, Gift, BookOpen, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ChildDashboard() {
@@ -131,6 +131,13 @@ export default function ChildDashboard() {
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => router.push('/child/settings')}
+              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+              title="설정"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
             <button
               onClick={switchProfile}
               className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"

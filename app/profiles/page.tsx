@@ -40,6 +40,7 @@ export default function ProfilesPage() {
     pin: '',
     avatar_url: '',
   });
+  const [isManageMode, setIsManageMode] = useState(false);
   const router = useRouter();
   const { selectProfile, isAuthenticated, fullLogout } = useAuthStore();
 
@@ -105,7 +106,11 @@ export default function ProfilesPage() {
     // PIN 없는 프로필: 바로 선택
     const success = await selectProfile(profile.id);
     if (success) {
-      router.push(profile.role === 'parent' ? '/parent/dashboard' : '/child/dashboard');
+      if (isManageMode && profile.role === 'parent') {
+        router.push('/profiles/manage');
+      } else {
+        router.push(profile.role === 'parent' ? '/parent/dashboard' : '/child/dashboard');
+      }
     } else {
       setError('프로필 선택에 실패했습니다.');
     }
@@ -124,7 +129,11 @@ export default function ProfilesPage() {
 
     const success = await selectProfile(selectedProfile.id, pin);
     if (success) {
-      router.push(selectedProfile.role === 'parent' ? '/parent/dashboard' : '/child/dashboard');
+      if (isManageMode && selectedProfile.role === 'parent') {
+        router.push('/profiles/manage');
+      } else {
+        router.push(selectedProfile.role === 'parent' ? '/parent/dashboard' : '/child/dashboard');
+      }
     } else {
       setError('PIN이 올바르지 않습니다.');
       setPin('');
@@ -134,6 +143,22 @@ export default function ProfilesPage() {
   async function handleFullLogout() {
     await fullLogout();
     router.push('/login');
+  }
+
+  function handleManageClick() {
+    const parentProfiles = profiles.filter(p => p.role === 'parent');
+    if (parentProfiles.length === 0) {
+      setError('부모 프로필이 없습니다. 먼저 부모 프로필을 생성해주세요.');
+      return;
+    }
+    setIsManageMode(true);
+  }
+
+  function handleCancelManageMode() {
+    setIsManageMode(false);
+    setSelectedProfile(null);
+    setPin('');
+    setError('');
   }
 
   async function handleCreateProfile(e: React.FormEvent) {
@@ -296,6 +321,21 @@ export default function ProfilesPage() {
           </div>
         ) : !selectedProfile ? (
           <div className="space-y-4">
+            {/* 관리 모드 안내 메시지 */}
+            {isManageMode && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <p className="text-blue-700 font-medium">
+                  프로필 관리를 위해 부모 프로필로 로그인하세요
+                </p>
+                <button
+                  onClick={handleCancelManageMode}
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  취소
+                </button>
+              </div>
+            )}
+
             {profiles.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500 mb-6">
@@ -311,7 +351,8 @@ export default function ProfilesPage() {
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
-                {profiles.map((profile) => (
+                {/* 관리 모드: 부모 프로필만 표시, 일반 모드: 모든 프로필 표시 */}
+                {(isManageMode ? profiles.filter(p => p.role === 'parent') : profiles).map((profile) => (
                   <button
                     key={profile.id}
                     onClick={() => handleProfileSelect(profile)}
@@ -336,18 +377,20 @@ export default function ProfilesPage() {
                   </button>
                 ))}
 
-                {/* Add profile "+" card */}
-                <button
-                  onClick={() => setIsCreating(true)}
-                  className="rounded-xl border-3 border-dashed border-gray-300 p-6 hover:border-blue-400 hover:bg-blue-50 transition-all hover:scale-105 text-center flex flex-col items-center justify-center gap-2"
-                >
-                  <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-                    <Plus className="w-10 h-10 text-gray-400" />
-                  </div>
-                  <div className="font-semibold text-gray-500 text-lg">
-                    프로필 추가
-                  </div>
-                </button>
+                {/* Add profile "+" card - 관리 모드가 아닐 때만 표시 */}
+                {!isManageMode && (
+                  <button
+                    onClick={() => setIsCreating(true)}
+                    className="rounded-xl border-3 border-dashed border-gray-300 p-6 hover:border-blue-400 hover:bg-blue-50 transition-all hover:scale-105 text-center flex flex-col items-center justify-center gap-2"
+                  >
+                    <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+                      <Plus className="w-10 h-10 text-gray-400" />
+                    </div>
+                    <div className="font-semibold text-gray-500 text-lg">
+                      프로필 추가
+                    </div>
+                  </button>
+                )}
               </div>
             )}
 
@@ -355,28 +398,36 @@ export default function ProfilesPage() {
               <p className="text-sm text-red-600 text-center">{error}</p>
             )}
 
-            <div className="flex justify-center gap-4 mt-6">
-              <button
-                onClick={() => router.push('/profiles/manage')}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
-              >
-                프로필 관리
-              </button>
-              <button
-                onClick={handleFullLogout}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
-              >
-                로그아웃
-              </button>
-            </div>
+            {/* 하단 버튼들 - 관리 모드가 아닐 때만 표시 */}
+            {!isManageMode && (
+              <div className="flex justify-center gap-4 mt-6">
+                <button
+                  onClick={handleManageClick}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                  프로필 관리
+                </button>
+                <button
+                  onClick={handleFullLogout}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                  로그아웃
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-lg p-6">
             <button
-              onClick={() => setSelectedProfile(null)}
+              onClick={() => {
+                setSelectedProfile(null);
+                if (isManageMode) {
+                  // 관리 모드에서 취소하면 관리 모드도 해제
+                }
+              }}
               className="text-sm text-gray-500 hover:text-gray-700 mb-4"
             >
-              ← 다른 사람 선택
+              ← 다른 {isManageMode ? '부모 프로필' : '사람'} 선택
             </button>
 
             <div className="text-center mb-6">
