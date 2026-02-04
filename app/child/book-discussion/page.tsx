@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useBookDiscussion } from '@/hooks/useBookDiscussion';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { BookSearchResult, BookCoverInfo } from '@/types';
+import type { TranscriptEntry } from '@/hooks/useBookDiscussion';
 
 type PageState = 'idle' | 'searching' | 'selecting' | 'connecting' | 'connected' | 'error';
 
@@ -55,6 +56,21 @@ export default function BookDiscussionPage() {
     saveDiscussion,
   } = useBookDiscussion();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+
+  // 연속된 같은 역할의 항목을 턴 단위로 그룹핑
+  const groupedTranscripts = useMemo(() => {
+    const groups: TranscriptEntry[] = [];
+    for (const entry of transcripts) {
+      const last = groups[groups.length - 1];
+      if (last && last.role === entry.role) {
+        groups[groups.length - 1] = { role: last.role, text: last.text + ' ' + entry.text };
+      } else {
+        groups.push({ ...entry });
+      }
+    }
+    return groups;
+  }, [transcripts]);
+
   const {
     isListening,
     transcript,
@@ -569,12 +585,12 @@ export default function BookDiscussionPage() {
 
       {/* Transcript Panel */}
       <div className="flex-1 overflow-y-auto rounded-xl bg-gray-50 border border-gray-200 p-4 space-y-3">
-        {transcripts.length === 0 && !partialAiText && !partialUserText && (
+        {groupedTranscripts.length === 0 && !partialAiText && !partialUserText && (
           <p className="text-center text-gray-400 text-sm py-8">
             대화 내용이 여기에 표시됩니다
           </p>
         )}
-        {transcripts.map((entry, idx) => (
+        {groupedTranscripts.map((entry, idx) => (
           <div
             key={idx}
             className={`flex ${entry.role === 'user' ? 'justify-end' : 'justify-start'}`}

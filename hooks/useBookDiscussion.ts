@@ -509,14 +509,21 @@ export function useBookDiscussion() {
         cleanedUpRef.current = false;
 
         // Send conversation context so AI can continue
+        // Merge consecutive same-role entries into proper alternating turns
         const currentTranscripts = transcriptsRef.current;
         if (currentTranscripts.length > 0) {
-          const contextTurns = currentTranscripts.map((t) => ({
-            role: t.role === 'user' ? 'user' : ('model' as const),
-            parts: [{ text: t.text }],
-          }));
+          const mergedTurns: { role: string; parts: { text: string }[] }[] = [];
+          for (const t of currentTranscripts) {
+            const geminiRole = t.role === 'user' ? 'user' : 'model';
+            const last = mergedTurns[mergedTurns.length - 1];
+            if (last && last.role === geminiRole) {
+              last.parts[0].text += ' ' + t.text;
+            } else {
+              mergedTurns.push({ role: geminiRole, parts: [{ text: t.text }] });
+            }
+          }
           session.sendClientContent({
-            turns: contextTurns,
+            turns: mergedTurns,
             turnComplete: true,
           });
         }
