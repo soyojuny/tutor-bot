@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import Image from 'next/image';
-import { AVATARS } from '@/lib/constants/avatars';
+import { AVATAR_CATEGORIES } from '@/lib/constants/avatars';
 
 interface AvatarPickerProps {
   currentAvatar: string | null | undefined;
@@ -12,6 +13,9 @@ interface AvatarPickerProps {
 }
 
 export default function AvatarPicker({ currentAvatar, onSelect, isOpen, onClose }: AvatarPickerProps) {
+  const [activeCategory, setActiveCategory] = useState(AVATAR_CATEGORIES[0].id);
+  const category = AVATAR_CATEGORIES.find((c) => c.id === activeCategory) ?? AVATAR_CATEGORIES[0];
+
   if (!isOpen) return null;
 
   return (
@@ -30,8 +34,26 @@ export default function AvatarPicker({ currentAvatar, onSelect, isOpen, onClose 
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-3">
-          {AVATARS.map((avatar) => (
+        {/* Category Tabs */}
+        <div className="flex gap-2 mb-4">
+          {AVATAR_CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                activeCategory === cat.id
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Avatar Grid */}
+        <div className="grid grid-cols-4 gap-3 max-h-64 overflow-y-auto">
+          {category.avatars.map((avatar) => (
             <button
               key={avatar.id}
               onClick={() => {

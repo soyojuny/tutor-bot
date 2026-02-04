@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <circle cx="60" cy="60" r="60" fill="#AB47BC"/>
+  <circle cx="60" cy="72" r="32" fill="#FDEBD0"/>
+  <polygon points="60,4 38,48 82,48" fill="#7B1FA2"/>
+  <polygon points="60,4 46,38 74,38" fill="#AB47BC"/>
+  <rect x="36" y="46" width="48" height="6" rx="3" fill="#7B1FA2"/>
+  <polygon points="60,2 57,12 63,12" fill="#FFD54F"/>
+  <polygon points="60,0 58,8 62,8" fill="#FFF9C4"/>
+  <path d="M34 58 Q28 70 36 80" stroke="#E1BEE7" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <path d="M86 58 Q92 70 84 80" stroke="#E1BEE7" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <circle cx="47" cy="66" r="4" fill="#4A148C"/>
+  <circle cx="73" cy="66" r="4" fill="#4A148C"/>
+  <circle cx="48" cy="65" r="1.5" fill="white"/>
+  <circle cx="74" cy="65" r="1.5" fill="white"/>
+  <circle cx="60" cy="74" r="2" fill="#F48FB1"/>
+  <path d="M52 82 Q60 88 68 82" stroke="#4A148C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="40" cy="74" r="3" fill="#F48FB1" opacity="0.3"/>
+  <circle cx="80" cy="74" r="3" fill="#F48FB1" opacity="0.3"/>
+</svg>
