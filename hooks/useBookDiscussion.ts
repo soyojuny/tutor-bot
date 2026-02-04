@@ -212,7 +212,10 @@ export function useBookDiscussion() {
           const finalText = accumulatedUserTextRef.current;
           accumulatedUserTextRef.current = '';
           setTranscripts((prev) => {
-            const next = [...prev, { role: 'user' as const, text: finalText }];
+            const last = prev[prev.length - 1];
+            const next = last?.role === 'user'
+              ? [...prev.slice(0, -1), { role: 'user' as const, text: last.text + ' ' + finalText }]
+              : [...prev, { role: 'user' as const, text: finalText }];
             transcriptsRef.current = next;
             return next;
           });
@@ -238,7 +241,10 @@ export function useBookDiscussion() {
           const finalText = accumulatedAiTextRef.current;
           accumulatedAiTextRef.current = '';
           setTranscripts((prev) => {
-            const next = [...prev, { role: 'ai' as const, text: finalText }];
+            const last = prev[prev.length - 1];
+            const next = last?.role === 'ai'
+              ? [...prev.slice(0, -1), { role: 'ai' as const, text: last.text + ' ' + finalText }]
+              : [...prev, { role: 'ai' as const, text: finalText }];
             transcriptsRef.current = next;
             return next;
           });
