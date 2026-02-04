@@ -149,6 +149,10 @@ export async function createLiveSessionToken(
           systemInstruction: buildSystemPrompt(bookTitle, bookSummary, childAge),
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          contextWindowCompression: {
+            slidingWindow: {},
+          },
+          sessionResumption: {},
           realtimeInputConfig: {
             automaticActivityDetection: {
               startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH,
